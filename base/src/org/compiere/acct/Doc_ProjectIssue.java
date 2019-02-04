@@ -248,7 +248,7 @@ public class Doc_ProjectIssue extends Doc
 			{
 				retValue = rs.getBigDecimal(1);
 				qty = rs.getBigDecimal(2);
-				retValue = retValue.multiply(qty); 
+				retValue = retValue.multiply(m_issue.getMovementQty()); 
 				log.fine("ExpLineCost = " + retValue);
 			}
 			else

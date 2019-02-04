@@ -18,18 +18,13 @@
 package org.adempiere.process;
 
 import java.math.BigDecimal;
-import java.util.Arrays;
-import java.util.concurrent.atomic.AtomicInteger;
 
-import org.compiere.model.I_C_ProjectPhase;
 import org.compiere.model.MCostDetail;
-import org.compiere.model.MInOut;
 import org.compiere.model.MInOutLine;
 import org.compiere.model.MProject;
 import org.compiere.model.MProjectIssue;
 import org.compiere.model.MProjectLine;
 import org.compiere.model.Query;
-import org.compiere.util.Env;
 
 /** Generated Process for (SBProcess_ProjetIssueMInOut)
  *  @author ADempiere (generated) 

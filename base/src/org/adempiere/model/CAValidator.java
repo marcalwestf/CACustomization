@@ -252,10 +252,10 @@ public class CAValidator implements ModelValidator
 		salaryhour = salaryhour.divide(new BigDecimal(8.00), 2, BigDecimal.ROUND_HALF_UP);
 		salaryhour = salaryhour.multiply(factor);
 		BigDecimal costtotal = salaryhour.multiply(expenseLine.getQty());
-		expenseLine.setExpenseAmt(costtotal);
+		expenseLine.setExpenseAmt(salaryhour);
 
 		if (expenseLine.getC_Currency_ID() == expenseLine.getC_Currency_Report_ID())
-			expenseLine.setConvertedAmt(expenseLine.getExpenseAmt());
+			expenseLine.setConvertedAmt(salaryhour);
 		else
 		{
 			expenseLine.setConvertedAmt(MConversionRate.convert (expenseLine.getCtx(),
@@ -687,6 +687,7 @@ public class CAValidator implements ModelValidator
 		//	Find/Create Project Line
 		MProjectLine projectLine = new MProjectLine(project);
 		projectLine.setMProjectIssue(projectIssue);		//	setIssue
+		projectLine.setCommittedAmt(projectIssue.getMovementQty().multiply(timeExpenseLine.getConvertedAmt()));
 		projectLine.setM_Product_ID(projectIssue.getM_Product_ID());
 		projectLine.set_ValueOfColumn(MTimeExpenseLine.COLUMNNAME_S_TimeExpenseLine_ID, projectIssue.getS_TimeExpenseLine_ID());
 		projectLine.saveEx();
