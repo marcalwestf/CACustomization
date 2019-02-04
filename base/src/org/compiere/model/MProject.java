@@ -44,6 +44,7 @@ import org.eevolution.model.X_I_Project;
  *	@author Carlos Parada, cparada@erpya.com, ERPCyA http://www.erpya.com
  *  	<a href="https://github.com/adempiere/adempiere/issues/2117">
  *		@see FR [ 2117 ] Add Support to Price List on Project</a>
+ *	@author Mario Calderon, mario.calderon@westfalia-it.com, Systenmhaus Westfalia http://www.westfalia-it.com
  */
 public class MProject extends X_C_Project
 {
@@ -1407,6 +1408,43 @@ public class MProject extends X_C_Project
 		
     	BigDecimal result = DB.getSQLValueBDEx(null, sql.toString(), params);
     	return result==null?Env.ZERO:result;
+    }
+	
+	/**
+	 * 	Update Costs and Revenues in the following order 
+	 * 1.- For the children of the project up to the lowest levels
+	 * 2.- For a given Project 
+	 * To avoid recursive relations, it breaks after 5 loops.
+	 * @param levelCount depth of the call
+	 *	@return message
+	 */	
+    private String updateProjectPerformanceCalculationSons(int c_Project_ID, int levelCount) {	
+
+		if (levelCount == 5)  // For now, allow for 5 level depth
+			return"";
+		
+    	String whereClause = "C_Project_Parent_ID=?";
+		ArrayList<Object> params = new ArrayList<Object>();
+		params.add(c_Project_ID);
+
+		List<MProject> childrenProjects = new Query(getCtx(), MProject.Table_Name, whereClause, get_TrxName())
+		.setParameters(params)
+		.list();
+
+		MProject project = new MProject(getCtx(), c_Project_ID, get_TrxName());
+		if (childrenProjects == null) {	
+			// No children -> just update this project
+			project.updateProjectPerformanceCalculation();
+			return"";	
+		}
+		
+		for (MProject childProject:childrenProjects) {
+			// update all children of this child
+			updateProjectPerformanceCalculationSons(childProject.getC_Project_ID(), levelCount+1);
+		}
+		// last but not least, update this project
+		project.updateProjectPerformanceCalculation();
+		return"";
     }
 	
 }	//	MProject
