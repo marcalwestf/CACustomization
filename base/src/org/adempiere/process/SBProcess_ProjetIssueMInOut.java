@@ -18,6 +18,7 @@
 package org.adempiere.process;
 
 import java.math.BigDecimal;
+import java.util.Optional;
 
 import org.compiere.model.MCostDetail;
 import org.compiere.model.MInOutLine;
@@ -78,26 +79,30 @@ public class SBProcess_ProjetIssueMInOut extends SBProcess_ProjetIssueMInOutAbst
 		projectIssue.process();
 
 		//	Find/Create Project Line
-		MProjectLine firstProjectLine = null;
+		MProjectLine newfirstProjectLine = null;
+		Optional<MProjectLine> firstProjectLine = null;
 		if (!project.getLines().isEmpty()) {
 			firstProjectLine = project.getLines().stream()
 					.filter(projectLine -> projectLine.getC_OrderPO_ID() == inOutLine.getM_InOut().getC_Order_ID()
 					&& projectLine.getM_Product_ID() == inOutLine.getM_Product_ID()
 					&& projectLine.getC_ProjectIssue_ID() == 0)
-					.findFirst().get();			
-		}
-		if (firstProjectLine == null)
-			firstProjectLine = new MProjectLine(project);
-		firstProjectLine.setMProjectIssue(projectIssue);        //	setIssue
-		firstProjectLine.setC_ProjectPhase_ID(projectIssue.get_ValueAsInt(MInOutLine.COLUMNNAME_C_ProjectPhase_ID));
-		firstProjectLine.setC_ProjectTask_ID(projectIssue.get_ValueAsInt(MInOutLine.COLUMNNAME_C_ProjectTask_ID));
+					.findFirst();	
+			if (!firstProjectLine.isPresent()) {
+				newfirstProjectLine = new MProjectLine(project);
+			}
+			else newfirstProjectLine = firstProjectLine.get();
+			}
+			
+		newfirstProjectLine.setMProjectIssue(projectIssue);        //	setIssue
+		newfirstProjectLine.setC_ProjectPhase_ID(projectIssue.get_ValueAsInt(MInOutLine.COLUMNNAME_C_ProjectPhase_ID));
+		newfirstProjectLine.setC_ProjectTask_ID(projectIssue.get_ValueAsInt(MInOutLine.COLUMNNAME_C_ProjectTask_ID));
 		MCostDetail costDetail = new Query(getCtx(), MCostDetail.Table_Name, "C_ProjectIssue_ID=?", get_TrxName())
 				.setParameters(projectIssue.getC_ProjectIssue_ID())
 				.first();
 		if (costDetail != null) {
-			firstProjectLine.setCommittedAmt(costDetail.getCurrentCostPrice());
+			newfirstProjectLine.setCommittedAmt(costDetail.getCurrentCostPrice());
 		}
-		firstProjectLine.saveEx();
+		newfirstProjectLine.saveEx();
 		addLog(projectIssue.getLine(), projectIssue.getMovementDate(), projectIssue.getMovementQty(), null);
 		//return "@Created@ " + counter.get();		
 	}

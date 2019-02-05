@@ -163,8 +163,11 @@ public class PaymentCreateFromInvoice extends PaymentCreateFromInvoiceAbstract {
 		}
 		//	
 		payment.setC_BPartner_ID(businessPartnerId);
-		if (getDocumentNo().length()>0)
+
+		//	Check No
+		if(!Util.isEmpty(getDocumentNo())) {
 			payment.setDocumentNo(getDocumentNo());
+		}
 		payment.setC_BankAccount_ID(getBankAccountId());
 		payment.setDateTrx(getPayDate());
 		payment.setDateAcct(getDateDoc());
