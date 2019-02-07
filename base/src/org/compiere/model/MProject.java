@@ -674,10 +674,14 @@ public class MProject extends X_C_Project
 		set_ValueOfColumn("CostIssueProduct", result);
 		result = calcCostIssueResource();					// Costs of Resource Issues
 		set_ValueOfColumn("CostIssueResource", result);
+		result = calcCostIssueInventory();					// Costs of Inventory Issues
+		set_ValueOfColumn("CostIssueInventory", result);
 		set_ValueOfColumn("CostIssueSum", ((BigDecimal)get_Value("CostIssueProduct")).
-				add((BigDecimal)get_Value("CostIssueResource")));  // Issue sum = Costs of Product Issue + Costs of Resource Issue
+				add((BigDecimal)get_Value("CostIssueResource")).
+				add((BigDecimal)get_Value("CostIssueInventory")));  // Issue sum = Costs of Product Issue + Costs of Resource Issue + Costs of Inventory Issues
 		set_ValueOfColumn("CostDiffExcecution", ((BigDecimal)get_Value("CostPlanned")).
-				subtract((BigDecimal)get_Value("CostIssueProduct")));  // Execution Diff = Planned Costs - Product Issue Costs
+				subtract((BigDecimal)get_Value("CostIssueProduct")).
+				subtract((BigDecimal)get_Value("CostIssueInventory")));  // Execution Diff = Planned Costs - (Product Issue Costs + Inventory Issue Costs
 
 		// Gross Margin
 		set_ValueOfColumn("GrossMargin", ((BigDecimal)get_Value("RevenueExtrapolated")).
@@ -710,11 +714,13 @@ public class MProject extends X_C_Project
 			set_ValueOfColumn("CostIssueProductLL", costIssueProductLL);
 			BigDecimal costIssueResourceLL = calcCostIssueResourceSons(getC_Project_ID());		  // Costs of Resource Issues of children
 			set_ValueOfColumn("CostIssueResourceLL", costIssueResourceLL);
-			BigDecimal costIssueSumLL  = ((BigDecimal)get_Value("CostIssueProductLL")).  // Issue sum LL = Costs of Product Issue LL + Costs of Resource Issue LL
-					add((BigDecimal)get_Value("CostIssueResourceLL")); 
+			BigDecimal costIssueInventoryLL = calcCostIssueInventorySons(getC_Project_ID());		  // Costs of Inventory Issues of children
+			set_ValueOfColumn("CostIssueInventoryLL", costIssueInventoryLL);
+			BigDecimal costIssueSumLL  = costIssueProductLL.  // Issue sum LL = Costs of Product Issue LL + Costs of Resource Issue LL+ Costs of Inventory Issue LL
+					add(costIssueResourceLL).add(costIssueInventoryLL); 
 			set_ValueOfColumn("CostIssueSumLL", costIssueSumLL);
-			BigDecimal costDiffExcecutionLL  = ((BigDecimal)get_Value("CostPlannedLL")). // Execution Diff LL = Planned Costs LL - Product Issue Costs LL
-					subtract((BigDecimal)get_Value("CostIssueProductLL"));
+			BigDecimal costDiffExcecutionLL  = costPlannedLL. // Execution Diff LL = Planned Costs LL - (Product Issue Costs LL + Inventory Issue Costs LL)
+					subtract(costIssueProductLL).subtract(costIssueInventoryLL);
 			set_ValueOfColumn("CostDiffExcecutionLL", costDiffExcecutionLL);
 
 			// Gross Margin of children
@@ -764,6 +770,7 @@ public class MProject extends X_C_Project
 				revenueExtrapolatedLL = revenueExtrapolatedLL.add((BigDecimal)sonProject.get_Value("RevenueExtrapolatedLL")==null?Env.ZERO:(BigDecimal)sonProject.get_Value("RevenueExtrapolatedLL"));
 				costIssueProductLL    = costIssueProductLL.add((BigDecimal)sonProject.get_Value("CostIssueProductLL")==null      ?Env.ZERO:(BigDecimal)sonProject.get_Value("CostIssueProductLL"));
 				costIssueResourceLL   = costIssueResourceLL.add((BigDecimal)sonProject.get_Value("CostIssueResourceLL")==null    ?Env.ZERO:(BigDecimal)sonProject.get_Value("CostIssueResourceLL"));
+				costIssueInventoryLL  = costIssueInventoryLL.add((BigDecimal)sonProject.get_Value("CostIssueInventoryLL")==null  ?Env.ZERO:(BigDecimal)sonProject.get_Value("CostIssueInventoryLL"));
 				costIssueSumLL        = costIssueSumLL.add((BigDecimal)sonProject.get_Value("CostIssueSumLL")==null              ?Env.ZERO:(BigDecimal)sonProject.get_Value("CostIssueSumLL"));
 				costDiffExcecutionLL  = costDiffExcecutionLL.add((BigDecimal)sonProject.get_Value("CostDiffExcecutionLL")==null  ?Env.ZERO:(BigDecimal)sonProject.get_Value("CostDiffExcecutionLL"));
 			}
@@ -778,6 +785,7 @@ public class MProject extends X_C_Project
 			set_ValueOfColumn("RevenueExtrapolatedLL", revenueExtrapolatedLL);
 			set_ValueOfColumn("CostIssueProductLL",    costIssueProductLL);
 			set_ValueOfColumn("CostIssueResourceLL",   costIssueResourceLL);
+			set_ValueOfColumn("CostIssueInventoryLL",  costIssueInventoryLL);
 			set_ValueOfColumn("CostIssueSumLL",        costIssueSumLL);
 			set_ValueOfColumn("CostDiffExcecutionLL",  costDiffExcecutionLL);
 
@@ -1365,6 +1373,28 @@ public class MProject extends X_C_Project
     	BigDecimal result = DB.getSQLValueBDEx(null, sql.toString(), params);
     	return result==null?Env.ZERO:result;
     }   
+
+	/**
+	 * Calculates this Project's Costs of Inventory Issues
+	 * Out of Project Lines
+	 *	@return sum of Costs of Inventory Issues of all phases and tasks 
+	 */
+    private BigDecimal calcCostIssueInventory() {		
+    	StringBuffer sql = new StringBuffer();
+    	sql.append("select sum (pl.committedamt) ");
+    	sql.append("from c_projectline pl ");
+    	sql.append("inner join c_project p on (pl.c_project_id=p.c_project_id) ");
+    	sql.append("where pl.C_Project_ID=? ");
+    	sql.append("and pl.c_projectissue_ID!=0 ");
+    	sql.append("and pl.s_timeexpenseline_ID==0 ");
+    	sql.append("and pl.m_inoutline_ID==0 ");
+    	
+		ArrayList<Object> params = new ArrayList<Object>();
+		params.add(getC_Project_ID());
+		
+    	BigDecimal result = DB.getSQLValueBDEx(null, sql.toString(), params);
+    	return result==null?Env.ZERO:result;
+    }   
     
 	/**
 	 * Calculates Costs of Product Issues for this Project's children 
@@ -1401,6 +1431,29 @@ public class MProject extends X_C_Project
     	sql.append("inner join c_project p on (pl.c_project_id=p.c_project_id) ");
     	sql.append("where pl.c_projectissue_ID!=0 ");
     	sql.append("and pl.s_timeexpenseline_ID!=0 ");
+    	sql.append("and pl.c_project_ID in (select c_project_ID from c_project where c_project_parent_ID =?)");
+    	
+		ArrayList<Object> params = new ArrayList<Object>();
+		params.add(c_Project_Parent_ID);
+		
+    	BigDecimal result = DB.getSQLValueBDEx(null, sql.toString(), params);
+    	return result==null?Env.ZERO:result;
+    }  
+    
+	/**
+	 * Calculates Costs of Inventory Issues for this Project's children 
+	 * Out of Project Lines
+	 * @param c_project_parent_ID Project ID
+	 *	@return sum of Costs of Inventory Issues of all phases and tasks of the project's children
+	 */
+    private BigDecimal calcCostIssueInventorySons(int c_Project_Parent_ID) {		
+    	StringBuffer sql = new StringBuffer();
+    	sql.append("select sum (pl.committedamt) ");
+    	sql.append("from c_projectline pl ");
+    	sql.append("inner join c_project p on (pl.c_project_id=p.c_project_id) ");
+    	sql.append("where pl.c_projectissue_ID!=0 ");
+    	sql.append("and pl.m_inoutline_ID==0 ");
+    	sql.append("and pl.s_timeexpenseline_ID==0 ");
     	sql.append("and pl.c_project_ID in (select c_project_ID from c_project where c_project_parent_ID =?)");
     	
 		ArrayList<Object> params = new ArrayList<Object>();
