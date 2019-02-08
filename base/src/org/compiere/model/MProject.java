@@ -666,27 +666,50 @@ public class MProject extends X_C_Project
 		set_ValueOfColumn("RevenueAmt", result);
 		result = calcNotInvoicedCostOrRevenue(true); 		// Planned but not yet invoiced revenue
 		set_ValueOfColumn("RevenueNotInvoiced", result);
-		result = calcCostOrRevenueExtrapolated(true);  		// Actual revenue + Planned but not yet invoiced revenue
-		set_ValueOfColumn("RevenueExtrapolated", result);
+		BigDecimal revenueExtrapolated = calcCostOrRevenueExtrapolated(true);  // Actual revenue + Planned but not yet invoiced revenue
+		set_ValueOfColumn("RevenueExtrapolated", revenueExtrapolated);
 		
 		// Update Issue Costs
-		result = calcCostIssueProduct();					// Costs of Product Issues
-		set_ValueOfColumn("CostIssueProduct", result);
-		result = calcCostIssueResource();					// Costs of Resource Issues
-		set_ValueOfColumn("CostIssueResource", result);
-		result = calcCostIssueInventory();					// Costs of Inventory Issues
-		set_ValueOfColumn("CostIssueInventory", result);
-		set_ValueOfColumn("CostIssueSum", ((BigDecimal)get_Value("CostIssueProduct")).
-				add((BigDecimal)get_Value("CostIssueResource")).
-				add((BigDecimal)get_Value("CostIssueInventory")));  // Issue sum = Costs of Product Issue + Costs of Resource Issue + Costs of Inventory Issues
+		BigDecimal costIssueProduct = calcCostIssueProduct();		// Costs of Product Issues
+		set_ValueOfColumn("CostIssueProduct", costIssueProduct);
+		BigDecimal costIssueResource = calcCostIssueResource();		// Costs of Resource Issues
+		set_ValueOfColumn("CostIssueResource", costIssueResource);
+		BigDecimal costIssueInventory = calcCostIssueInventory();   // Costs of Inventory Issues
+		set_ValueOfColumn("CostIssueInventory", costIssueInventory);
+		set_ValueOfColumn("CostIssueSum", costIssueProduct.add(costIssueResource).
+				add(costIssueInventory));  // Issue sum = Costs of Product Issue + Costs of Resource Issue + Costs of Inventory Issues
 		set_ValueOfColumn("CostDiffExcecution", ((BigDecimal)get_Value("CostPlanned")).
-				subtract((BigDecimal)get_Value("CostIssueProduct")).
-				subtract((BigDecimal)get_Value("CostIssueInventory")));  // Execution Diff = Planned Costs - (Product Issue Costs + Inventory Issue Costs
+				subtract(costIssueProduct).
+				subtract(costIssueInventory));  // Execution Diff = Planned Costs - (Product Issue Costs + Inventory Issue Costs
 
 		// Gross Margin
-		set_ValueOfColumn("GrossMargin", ((BigDecimal)get_Value("RevenueExtrapolated")).
-				subtract((BigDecimal)get_Value("CostExtrapolated")).
-				subtract((BigDecimal)get_Value("CostIssueResource")));  // Gross margin = extrapolated revenue - (extrapolated costs + product issue costs)
+		// Gross margin = extrapolated revenue - (extrapolated costs + resource issue costs + inventory issue costs)
+		BigDecimal sumCosts = ((BigDecimal)get_Value("CostExtrapolated")).
+				add(costIssueResource).
+				add(costIssueInventory);
+		
+		BigDecimal grossMargin = revenueExtrapolated.subtract(sumCosts);
+		set_ValueOfColumn("GrossMargin",grossMargin);		
+
+		// Margin (%) only for this level; there is no use to calculate it on LL
+		if(sumCosts.compareTo(Env.ZERO)==0 && revenueExtrapolated.compareTo(Env.ZERO)==0) {
+			set_ValueOfColumn("Margin", Env.ZERO); // Costs==0, Revenue== -> 0% margin	
+			}
+		else if(sumCosts.compareTo(Env.ZERO)!=0) {
+			if(revenueExtrapolated.compareTo(Env.ZERO)!=0) {
+				set_ValueOfColumn("Margin", revenueExtrapolated.divide(sumCosts, 6, BigDecimal.ROUND_HALF_UP).subtract(Env.ONE).
+						multiply(Env.ONEHUNDRED).setScale(2, BigDecimal.ROUND_HALF_UP));
+			}
+			else {
+				set_ValueOfColumn("Margin", Env.ONEHUNDRED.negate()); // Revenue==0 -> -100% margin						
+			}
+
+		} 
+		else {
+			set_ValueOfColumn("Margin", Env.ONEHUNDRED); // Costs==0 -> 100% margin			
+		}
+		
+		BigDecimal grossMarginLL = Env.ZERO; // Gross Margin of children
 
 		if (isSummary()) { // Project is a parent project
 			// Update costs of direct children (not recursively all children!)
@@ -723,10 +746,12 @@ public class MProject extends X_C_Project
 					subtract(costIssueProductLL).subtract(costIssueInventoryLL);
 			set_ValueOfColumn("CostDiffExcecutionLL", costDiffExcecutionLL);
 
-			// Gross Margin of children
-			set_ValueOfColumn("GrossMarginLL", ((BigDecimal)get_Value("RevenueExtrapolatedLL")).
-					subtract((BigDecimal)get_Value("CostExtrapolatedLL")).
-					subtract((BigDecimal)get_Value("CostIssueResourceLL")));  // Gross margin LL = extrapolated revenue LL - (extrapolated costs LL + product issue costs LL)
+			// Gross margin LL = extrapolated revenue LL - (extrapolated costs LL + resource issue costs LL + inventory issue costs LL)
+			grossMarginLL = revenueExtrapolatedLL.subtract(costExtrapolatedLL).
+					subtract(costIssueResourceLL).subtract(costIssueInventoryLL);
+			if(grossMarginLL==null)
+				grossMarginLL = Env.ZERO;
+			set_ValueOfColumn("GrossMarginLL",grossMarginLL);
 
 			saveEx();  // TODO: delete line
 
@@ -823,8 +848,8 @@ public class MProject extends X_C_Project
 			.list();
 			// Update all children of parent project
 			for (MProject sonProject: projectsOfFather)	{
-				BigDecimal revenueExtrapolated = 
-						(BigDecimal)sonProject.get_Value("RevenuePlanned");
+				BigDecimal revenueExtrapolatedSon = 
+						(BigDecimal)sonProject.get_Value("RevenueExtrapolated");
 				BigDecimal weight = (BigDecimal)sonProject.get_Value("Weight");
 				BigDecimal volume = (BigDecimal)sonProject.get_Value("volume");
 				if (volume == null)
@@ -832,8 +857,8 @@ public class MProject extends X_C_Project
 				BigDecimal shareRevenue = Env.ZERO;
 				BigDecimal shareWeight = Env.ZERO;
 				BigDecimal shareVolume = Env.ZERO;
-				if (revenueExtrapolated!=null && revenueAllExtrapolated.longValue()!= 0)
-					shareRevenue = revenueExtrapolated.divide(revenueAllExtrapolated, 5, BigDecimal.ROUND_HALF_DOWN);
+				if (revenueExtrapolatedSon!=null && revenueAllExtrapolated.longValue()!= 0)
+					shareRevenue = revenueExtrapolatedSon.divide(revenueAllExtrapolated, 5, BigDecimal.ROUND_HALF_DOWN);
 				if (weight!=null && weightFather != null && weightFather.longValue()!=0)
 					shareWeight = weight.divide(weightFather, 5, BigDecimal.ROUND_HALF_DOWN);
 				if (volume!=null && volumeFather != null && volumeFather.longValue()!= 0)
@@ -846,6 +871,11 @@ public class MProject extends X_C_Project
 			fatherProject.saveEx();
 			saveEx();
 		}
+
+		BigDecimal grossMarginTotal = ((BigDecimal)get_Value("GrossMargin")).add(grossMarginLL);
+		if(grossMarginTotal==null)
+			grossMarginTotal = Env.ZERO;
+		set_ValueOfColumn("GrossMarginTotal", grossMarginTotal);
 		
 		Date date= new Date();
 		long time = date.getTime();
