@@ -133,10 +133,16 @@ public class Doc_ProjectIssue extends Doc
 		//  Issue Cost
 		BigDecimal costs = null;
 		BigDecimal total = Env.ZERO;
-		if (m_issue.getM_InOutLine_ID() != 0)
+		if (m_issue.getM_InOutLine_ID() != 0) {
+
 			costs = getPOCost(as);
-		else if (m_issue.getS_TimeExpenseLine_ID() != 0)
+			total = costs;
+		}
+		else if (m_issue.getS_TimeExpenseLine_ID() != 0) {
+
 			costs = getLaborCost(as);
+			total = costs;
+		}
 		if (costs == null)	//	standard Product Costs
 		{	
 			for(MCostDetail cost : m_line.getCostDetail(as, false))

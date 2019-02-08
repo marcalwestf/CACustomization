@@ -91,6 +91,7 @@ public class TaxDeclarationCreate extends TaxDeclarationCreateAbstract
 		params.add(taxDeclaration.get_ValueAsInt("C_TaxDeclarationType_ID"));
 		List<MInvoice> invoices = new Query(getCtx(), MInvoice.Table_Name, whereClause.toString(), get_TrxName())
 				.setParameters(params)
+				.setClient_ID()
 				.setOrderBy("documentno")
 				.list();		
 		invoices.stream().forEach(invoice ->{
@@ -133,6 +134,7 @@ public class TaxDeclarationCreate extends TaxDeclarationCreateAbstract
 		params.add(invoiceTax.getC_Tax_ID());
 		List<MFactAcct> factAccts = new Query(getCtx(), MFactAcct.Table_Name, whereClause, get_TrxName())
 				.setParameters(params)
+				.setClient_ID()
 				.list();
 		factAccts.stream().forEach(factAcct ->{
 			MTaxDeclarationAcct taxDeclarationAcct = new MTaxDeclarationAcct (taxDeclaration, factAcct);
