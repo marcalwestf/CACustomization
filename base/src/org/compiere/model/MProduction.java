@@ -159,8 +159,7 @@ public class MProduction extends X_M_Production implements DocAction , DocumentR
 				return "@QtyCompleted@ > @TargetQty@";
 		} else {
 			return "@M_ProductionBatch_ID@ @Unprocessed@";//	TODO: Missing message translation
-		}
-		
+		}		
 		StringBuilder errors = new StringBuilder();
 		MProductionLine[] lines = getLines_OrderedByIsEndProduct();
 

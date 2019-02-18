@@ -92,7 +92,7 @@ public class TaxDeclarationCreate extends TaxDeclarationCreateAbstract
 		List<MInvoice> invoices = new Query(getCtx(), MInvoice.Table_Name, whereClause.toString(), get_TrxName())
 				.setParameters(params)
 				.setClient_ID()
-				.setOrderBy("documentno")
+				.setOrderBy("DateAcct, c_Bpartner_ID")
 				.list();		
 		invoices.stream().forEach(invoice ->{
 			create(invoice);

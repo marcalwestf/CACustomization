@@ -242,7 +242,6 @@ public class MOrderLine extends X_C_OrderLine implements IDocumentLine
 	public void setHeaderInfo (MOrder order)
 	{
 		m_parent = order;
-		//m_precision = new Integer(order.getPrecision());
 ;		m_M_PriceList_ID = order.getM_PriceList_ID();
 		m_precision = MPriceList.getPricePrecision(getCtx(), m_M_PriceList_ID);
 		m_IsSOTrx = order.isSOTrx();
@@ -457,7 +456,6 @@ public class MOrderLine extends X_C_OrderLine implements IDocumentLine
 			MCurrency cur = MCurrency.get(getCtx(), getC_Currency_ID());
 			if (cur.get_ID() != 0)
 			{
-				//m_precision = new Integer (cur.getStdPrecision());
 				m_precision = cur.getCostingPrecision();
 				return m_precision.intValue();
 			}

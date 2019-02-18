@@ -19,22 +19,33 @@ package org.adempiere.model;
 
 import java.math.BigDecimal;
 import java.sql.Timestamp;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
 
 import org.adempiere.exceptions.AdempiereException;
+import org.compiere.acct.Doc;
+import org.compiere.acct.Fact;
+import org.compiere.acct.FactLine;
 import org.compiere.model.I_C_PaySelection;
+import org.compiere.model.MAllocationHdr;
 import org.compiere.model.MBankAccount;
+import org.compiere.model.MBankStatement;
+import org.compiere.model.MBankStatementLine;
 import org.compiere.model.MClient;
 import org.compiere.model.MCommissionAmt;
 import org.compiere.model.MCommissionDetail;
 import org.compiere.model.MConversionRate;
 import org.compiere.model.MDocType;
+import org.compiere.model.MFactAcct;
+import org.compiere.model.MInOut;
 import org.compiere.model.MInOutLine;
+import org.compiere.model.MInventory;
 import org.compiere.model.MInvoice;
 import org.compiere.model.MInvoiceLine;
+import org.compiere.model.MMovement;
 import org.compiere.model.MOrder;
 import org.compiere.model.MOrderLine;
 import org.compiere.model.MPaySelection;
@@ -42,25 +53,26 @@ import org.compiere.model.MPaySelectionCheck;
 import org.compiere.model.MPaySelectionLine;
 import org.compiere.model.MPayment;
 import org.compiere.model.MPaymentBatch;
+import org.compiere.model.MProduction;
 import org.compiere.model.MProject;
 import org.compiere.model.MProjectIssue;
 import org.compiere.model.MProjectLine;
+import org.compiere.model.MRequisition;
 import org.compiere.model.MTimeExpense;
 import org.compiere.model.MTimeExpenseLine;
 import org.compiere.model.ModelValidationEngine;
 import org.compiere.model.ModelValidator;
 import org.compiere.model.PO;
+import org.compiere.model.Query;
 import org.compiere.model.X_C_Payment;
 import org.compiere.process.DocAction;
 import org.compiere.util.CLogger;
 import org.compiere.util.DB;
 import org.compiere.util.Env;
+import org.eevolution.model.MDDOrder;
 import org.eevolution.model.MHRAttribute;
 import org.eevolution.model.MHRConcept;
-import org.python.antlr.ast.GeneratorExp.generators_descriptor;
-import org.compiere.model.MBankStatement;
-import org.compiere.model.MBankStatementLine;
-import org.compiere.util.Env;
+import org.eevolution.model.MPPOrder;
 
 
 /**
@@ -111,6 +123,12 @@ public class CAValidator implements ModelValidator
 		engine.addDocValidate(MInvoice.Table_Name, this);
 		engine.addDocValidate(MPayment.Table_Name, this);
 		engine.addDocValidate(MTimeExpense.Table_Name, this);
+		engine.addDocValidate(MMovement.Table_Name, this);
+		engine.addDocValidate(MInventory.Table_Name, this);
+		engine.addDocValidate(MProjectIssue.Table_Name, this);
+		engine.addDocValidate(MProduction.Table_Name, this);
+		engine.addDocValidate(MAllocationHdr.Table_Name, this);
+		engine.addDocValidate(MInOut.Table_Name, this);
 		
 		//	Documents to be monitored
 	//	engine.addDocValidate(MInvoice.Table_Name, this);
@@ -466,6 +484,10 @@ public class CAValidator implements ModelValidator
         		error = InvoiceSetPrecision(po);
         	}
         }
+        if (ModelValidator.TIMING_BEFORE_POST == timing) {
+        	if (po.get_ColumnIndex("Posted") > 0)        		
+        	error = factAcct_UpdateDocumentNO(po);
+        }
         
 		return error;
 	}	//	docValidate
@@ -692,6 +714,52 @@ public class CAValidator implements ModelValidator
 		projectLine.set_ValueOfColumn(MTimeExpenseLine.COLUMNNAME_S_TimeExpenseLine_ID, projectIssue.getS_TimeExpenseLine_ID());
 		projectLine.saveEx();
 		//return "@Created@ " + counter.get();		
+	}
+	
+
+	private String factAcct_UpdateDocumentNO(PO A_PO)
+
+	{	
+		Doc doc = A_PO.getDoc();
+		String dateacct = "DateAcct";
+		String Documentno = "";
+		if (A_PO instanceof MInventory
+				|| A_PO instanceof MMovement
+				|| A_PO instanceof MProjectIssue
+				|| A_PO instanceof MProduction)
+			dateacct = "MovementDate";
+		else if (A_PO instanceof MBankStatement)
+			dateacct = "StatementDate";
+		else if (A_PO instanceof MDDOrder)
+			dateacct = "DateOrdered";
+		else if (A_PO instanceof MRequisition)
+			dateacct = "DateRequired";
+		else if (A_PO instanceof MPPOrder)
+			dateacct = "DateOrdered";
+		Timestamp date = (Timestamp)A_PO.get_Value(dateacct);
+		String whereClause = "dateacct =? and documentno is not null and documentno <> ''  and postingtype = 'A' ";
+		MFactAcct factacct = new Query(A_PO.getCtx(), MFactAcct.Table_Name, whereClause, A_PO.get_TrxName())
+				.setParameters(A_PO.get_Value(dateacct))
+				.setClient_ID()
+				.first();
+		if (factacct != null)
+			Documentno = factacct.get_ValueAsString("DocumentNo");
+		else
+		{
+			Documentno = DB.getDocumentNo(A_PO.getAD_Client_ID(), MFactAcct.Table_Name, A_PO.get_TrxName());			
+		}
+
+
+		ArrayList<Fact> facts = doc.getFacts();
+		// one fact per acctschema
+		for (Fact fact:facts)
+		{
+			for (FactLine fLine:fact.getLines())
+			{
+				fLine.set_ValueOfColumn("DocumentNo", Documentno);
+			}
+		}		
+		return "";
 	}
 
 	

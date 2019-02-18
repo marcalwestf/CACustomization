@@ -18,6 +18,7 @@
 package org.adempiere.process;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.Optional;
 
 import org.compiere.model.MCostDetail;
@@ -25,7 +26,10 @@ import org.compiere.model.MInOutLine;
 import org.compiere.model.MProject;
 import org.compiere.model.MProjectIssue;
 import org.compiere.model.MProjectLine;
+import org.compiere.model.MTransaction;
 import org.compiere.model.Query;
+import org.compiere.util.Env;
+import org.compiere.util.Msg;
 
 /** Generated Process for (SBProcess_ProjetIssueMInOut)
  *  @author ADempiere (generated) 
@@ -33,6 +37,7 @@ import org.compiere.model.Query;
  */
 public class SBProcess_ProjetIssueMInOut extends SBProcess_ProjetIssueMInOutAbstract
 {
+	StringBuffer resultmsg = null;
 	@Override
 	protected void prepare()
 	{
@@ -43,26 +48,31 @@ public class SBProcess_ProjetIssueMInOut extends SBProcess_ProjetIssueMInOutAbst
 	protected String doIt() throws Exception
 	{
 		//	Sum all
+		resultmsg = new StringBuffer();
 		for(int inOutLine_ID : getSelectionKeys()) {
 			BigDecimal movementQty = getSelectionAsBigDecimal(inOutLine_ID, "PI_QtyToDeliver");
 			MInOutLine inOutLine = new MInOutLine(getCtx(), inOutLine_ID, get_TrxName());
 			if (inOutLine.getM_Product_ID() == 0 || inOutLine.getMovementQty().signum() == 0)
 				continue;
-			createLine(inOutLine, movementQty);
+			resultmsg.append(createLine(inOutLine, movementQty));
 			}
-		return "";
+		return resultmsg.toString();
 	}
 	
-	private void createLine(MInOutLine inOutLine, BigDecimal movementQty) {
+	private String createLine(MInOutLine inOutLine, BigDecimal movementQty) {
 		
 
 
 		//	Create Issue
 		if (inOutLine.getC_Project_ID() == 0)
-			return;
+			return "";
+		String error = checkStock(inOutLine);
+		if (error.length()>0) {
+			return error;
+		}
 		MProject project = (MProject)inOutLine.getC_Project();
 		MProjectIssue projectIssue = new MProjectIssue(project);
-		projectIssue.setMandatory(inOutLine.getM_Locator_ID(), inOutLine.getM_Product_ID(), inOutLine.getMovementQty());
+		projectIssue.setMandatory(inOutLine.getM_Locator_ID(), inOutLine.getM_Product_ID(), movementQty);
 		if (getMovementDate() != null)        //	default today
 			projectIssue.setMovementDate(getMovementDate());
 		if (getDescription() != null && getDescription().length() > 0)
@@ -106,7 +116,7 @@ public class SBProcess_ProjetIssueMInOut extends SBProcess_ProjetIssueMInOutAbst
 		}
 		firstProjectLine.saveEx();
 		addLog(projectIssue.getLine(), projectIssue.getMovementDate(), projectIssue.getMovementQty(), null);
-		//return "@Created@ " + counter.get();		
+		return "";		
 	}
 
 	/**
@@ -126,4 +136,28 @@ public class SBProcess_ProjetIssueMInOut extends SBProcess_ProjetIssueMInOutAbst
 			return false;*/
 		return true;
 	}	//	projectIssueHasReceipt
+	
+	private String checkStock(MInOutLine inOutLine) {
+
+		// Check if Production only possible when sufficient quantity in stock
+		String whereClause = "M_Product_ID=? and M_Locator_ID=? and Movementdate<=? ";
+		ArrayList <Object> params = new ArrayList<>();
+		params.add(inOutLine.getM_Product_ID());
+		params.add(inOutLine.getM_Locator_ID());
+		params.add(getMovementDate());
+		if (inOutLine.getM_AttributeSetInstance_ID()!=0){
+			whereClause = whereClause + " and M_AttributesetInstance_ID=? ";
+			params.add(inOutLine.getM_AttributeSetInstance_ID());
+		}
+		BigDecimal qtyOnHand = new Query(getCtx(), MTransaction.Table_Name, whereClause, get_TrxName())
+				.setParameters(params)
+				.aggregate(MTransaction.COLUMNNAME_MovementQty, Query.AGGREGATE_SUM);
+
+		if (qtyOnHand.add(inOutLine.getMovementQty()).compareTo(Env.ZERO)<0) {
+			return (Msg.translate(getCtx(), "NotEnoughStocked") + " " + inOutLine.getM_Product().getName() 
+					+ " Proyecto:" + inOutLine.getC_Project().getValue() + " " + inOutLine.getC_Project().getName()
+					+ ": " + Msg.translate(getCtx(), "QtyAvailable") + " " + qtyOnHand.toString() + ".\n" );
+		}
+		return "";
+	}
 }
