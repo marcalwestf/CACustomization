@@ -1504,7 +1504,7 @@ public class MProject extends X_C_Project
     private String updateProjectPerformanceCalculationSons(int c_Project_ID, int levelCount) {	
 
 		if (levelCount == 5)  // For now, allow for 5 level depth
-			return"";
+			return"";         // Right now, there is no verification of circular reference
 		
     	String whereClause = "C_Project_Parent_ID=?";
 		ArrayList<Object> params = new ArrayList<Object>();
