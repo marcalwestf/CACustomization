@@ -74,11 +74,11 @@ public class ProjectClose extends SvrProcess
 
 		//	Close lines
 		projectLines.stream().forEach( projectLine ->{
-			projectLine.setProcessed(true);
+			projectLine.setProcessed(projectLine.isProcessed()?false:true);
 			projectLine.saveEx();
 		});
 
-		project.setProcessed(true);
+		project.setProcessed(project.isProcessed()?false:true);
 		project.saveEx();
 
 		return "";
