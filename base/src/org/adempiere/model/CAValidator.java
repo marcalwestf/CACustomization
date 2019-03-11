@@ -287,11 +287,6 @@ public class CAValidator implements ModelValidator
 					costtotal, expenseLine.getC_Currency_ID(), expenseLine.getC_Currency_Report_ID(), 
 					expenseLine.getDateExpense(), 0, getAD_Client_ID(), expenseLine.getAD_Org_ID()) );
 		}
-		if (expenseLine.get_ValueAsInt("S_TravelExpense_ID") > 0) {
-			X_S_TravelExpense expense = new X_S_TravelExpense(expenseLine.getCtx(), expenseLine.get_ValueAsInt("S_TravelExpense_ID"), 
-					expenseLine.get_TrxName());
-			expenseLine.setConvertedAmt(expenseLine.getConvertedAmt().add(expense.getAmount()));
-		}
 		BigDecimal feeAmt = (BigDecimal)expenseLine.get_Value("FeeAmt");
 		BigDecimal travelCost =  (BigDecimal)expenseLine.get_Value("TravelCost");
 		if (conceptProduct.isInvoiced()) {
