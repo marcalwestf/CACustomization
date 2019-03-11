@@ -119,6 +119,10 @@ public class Doc_ProjectIssue extends Doc
 	public ArrayList<Fact> createFacts (MAcctSchema as)
 	{
 		//  create Fact Header
+		ArrayList<Fact> facts = new ArrayList<Fact>();
+		if(m_issue.getS_TimeExpenseLine_ID() > 0) {
+			return facts;
+		}
 		Fact fact = new Fact(this, as, Fact.POST_Actual);
 		setC_Currency_ID (as.getC_Currency_ID());
 
@@ -180,7 +184,6 @@ public class Doc_ProjectIssue extends Doc
 		cr.setM_Locator_ID(m_line.getM_Locator_ID());
 		cr.setLocationFromLocator(m_line.getM_Locator_ID(), true);	// from Loc
 		//
-		ArrayList<Fact> facts = new ArrayList<Fact>();
 		facts.add(fact);
 		return facts;
 	}   //  createFact

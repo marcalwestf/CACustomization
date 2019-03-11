@@ -54,7 +54,7 @@ public class SBProcess_ProjetIssueMInOut extends SBProcess_ProjetIssueMInOutAbst
 			MInOutLine inOutLine = new MInOutLine(getCtx(), inOutLine_ID, get_TrxName());
 			if (inOutLine.getM_Product_ID() == 0 || inOutLine.getMovementQty().signum() == 0)
 				continue;
-			resultmsg.append(createLine(inOutLine, movementQty));
+			resultmsg.append(createLine(inOutLine, movementQty) + " ");
 			}
 		return resultmsg.toString();
 	}
@@ -86,8 +86,9 @@ public class SBProcess_ProjetIssueMInOut extends SBProcess_ProjetIssueMInOutAbst
 			projectIssue.set_ValueOfColumn(MInOutLine.COLUMNNAME_C_ProjectPhase_ID, inOutLine.getC_ProjectPhase_ID());
 		if (inOutLine.getC_ProjectTask_ID()!=0)
 			projectIssue.set_ValueOfColumn(MInOutLine.COLUMNNAME_C_ProjectTask_ID, inOutLine.getC_ProjectTask_ID());
+		projectIssue.setM_AttributeSetInstance_ID(inOutLine.getM_AttributeSetInstance_ID());
 		projectIssue.saveEx();
-		projectIssue.process();
+		projectIssue.completeIt();
 
 		//	Find/Create Project Line
 		MProjectLine firstProjectLine = null;
@@ -108,6 +109,7 @@ public class SBProcess_ProjetIssueMInOut extends SBProcess_ProjetIssueMInOutAbst
 		firstProjectLine.setMProjectIssue(projectIssue);        //	setIssue
 		firstProjectLine.setC_ProjectPhase_ID(projectIssue.get_ValueAsInt(MInOutLine.COLUMNNAME_C_ProjectPhase_ID));
 		firstProjectLine.setC_ProjectTask_ID(projectIssue.get_ValueAsInt(MInOutLine.COLUMNNAME_C_ProjectTask_ID));
+		firstProjectLine.set_ValueOfColumn(MProjectIssue.COLUMNNAME_M_InOutLine_ID, projectIssue.getM_InOutLine_ID());
 		MCostDetail costDetail = new Query(getCtx(), MCostDetail.Table_Name, "C_ProjectIssue_ID=?", get_TrxName())
 				.setParameters(projectIssue.getC_ProjectIssue_ID())
 				.first();
@@ -116,7 +118,7 @@ public class SBProcess_ProjetIssueMInOut extends SBProcess_ProjetIssueMInOutAbst
 		}
 		firstProjectLine.saveEx();
 		addLog(projectIssue.getLine(), projectIssue.getMovementDate(), projectIssue.getMovementQty(), null);
-		return "";		
+		return projectIssue.getDocumentNo();		
 	}
 
 	/**

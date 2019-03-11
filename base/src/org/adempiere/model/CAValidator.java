@@ -73,6 +73,7 @@ import org.eevolution.model.MDDOrder;
 import org.eevolution.model.MHRAttribute;
 import org.eevolution.model.MHRConcept;
 import org.eevolution.model.MPPOrder;
+import org.python.antlr.ast.GeneratorExp.generators_descriptor;
 
 
 /**
@@ -252,8 +253,14 @@ public class CAValidator implements ModelValidator
 	
 
 	private String calculateLabourCost(PO A_PO) {
+		Boolean changed = false;
 		MTimeExpenseLine expenseLine = (MTimeExpenseLine)A_PO;
-		if (expenseLine.get_ValueAsInt(MHRConcept.COLUMNNAME_HR_Concept_ID) == 0)
+		if(expenseLine.is_ValueChanged("FeeAmt") || 
+				expenseLine.is_ValueChanged("TravelCost") ||
+				expenseLine.is_ValueChanged("HR_Concept_ID") ||
+				expenseLine.is_ValueChanged(MTimeExpenseLine.COLUMNNAME_Qty))
+			changed = true;
+		if (!changed)
 			return "";
 		MHRConcept conceptProduct = new MHRConcept(expenseLine.getCtx(), expenseLine.get_ValueAsInt(MHRConcept.COLUMNNAME_HR_Concept_ID), expenseLine.get_TrxName());
 		MHRAttribute productattribute = MHRAttribute.getByConceptAndEmployee(conceptProduct, null, 0, expenseLine.getParent().getDateReport(), expenseLine.getParent().getDateReport());
@@ -273,12 +280,28 @@ public class CAValidator implements ModelValidator
 		expenseLine.setExpenseAmt(salaryhour);
 
 		if (expenseLine.getC_Currency_ID() == expenseLine.getC_Currency_Report_ID())
-			expenseLine.setConvertedAmt(salaryhour);
+			expenseLine.setConvertedAmt(costtotal);
 		else
 		{
 			expenseLine.setConvertedAmt(MConversionRate.convert (expenseLine.getCtx(),
-					expenseLine.getExpenseAmt(), expenseLine.getC_Currency_ID(), expenseLine.getC_Currency_Report_ID(), 
+					costtotal, expenseLine.getC_Currency_ID(), expenseLine.getC_Currency_Report_ID(), 
 					expenseLine.getDateExpense(), 0, getAD_Client_ID(), expenseLine.getAD_Org_ID()) );
+		}
+		if (expenseLine.get_ValueAsInt("S_TravelExpense_ID") > 0) {
+			X_S_TravelExpense expense = new X_S_TravelExpense(expenseLine.getCtx(), expenseLine.get_ValueAsInt("S_TravelExpense_ID"), 
+					expenseLine.get_TrxName());
+			expenseLine.setConvertedAmt(expenseLine.getConvertedAmt().add(expense.getAmount()));
+		}
+		BigDecimal feeAmt = (BigDecimal)expenseLine.get_Value("FeeAmt");
+		BigDecimal travelCost =  (BigDecimal)expenseLine.get_Value("TravelCost");
+		if (conceptProduct.isInvoiced()) {
+			expenseLine.setQtyReimbursed(expenseLine.getQty());
+			expenseLine.setPriceReimbursed(expenseLine.getExpenseAmt().add(feeAmt).add(travelCost));			
+		}
+		else
+		{
+			expenseLine.setQtyReimbursed(Env.ONE);
+			expenseLine.setPriceReimbursed(feeAmt.add(travelCost));
 		}
 		return "";
 	}
@@ -486,7 +509,8 @@ public class CAValidator implements ModelValidator
         }
         if (ModelValidator.TIMING_BEFORE_POST == timing) {
         	if (po.get_ColumnIndex("Posted") > 0)        		
-        	error = factAcct_UpdateDocumentNO(po);
+        	//error = factAcct_UpdateDocumentNO(po)
+        		;
         }
         
 		return error;
@@ -703,13 +727,13 @@ public class CAValidator implements ModelValidator
 		if (timeExpenseLine.getC_ProjectTask_ID()!=0)
 			projectIssue.set_ValueOfColumn(MInOutLine.COLUMNNAME_C_ProjectTask_ID, timeExpenseLine.getC_ProjectTask_ID());
 		projectIssue.saveEx();
-		projectIssue.process();
+		projectIssue.completeIt();
 
 		//	Find/Create Project Line
 		//	Find/Create Project Line
 		MProjectLine projectLine = new MProjectLine(project);
 		projectLine.setMProjectIssue(projectIssue);		//	setIssue
-		projectLine.setCommittedAmt(projectIssue.getMovementQty().multiply(timeExpenseLine.getConvertedAmt()));
+		projectLine.setCommittedAmt(timeExpenseLine.getConvertedAmt());
 		projectLine.setM_Product_ID(projectIssue.getM_Product_ID());
 		projectLine.set_ValueOfColumn(MTimeExpenseLine.COLUMNNAME_S_TimeExpenseLine_ID, projectIssue.getS_TimeExpenseLine_ID());
 		projectLine.saveEx();

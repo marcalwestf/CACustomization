@@ -70,7 +70,8 @@ public class SBProcess_ProjectIssueFromInventory extends SBProcess_ProjectIssueF
 			projectIssue.setMovementDate(getMovementDate());
 		if (getDescription() != null && getDescription().length() > 0)
 			projectIssue.setDescription(getDescription());
-		projectIssue.process();
+		projectIssue.saveEx();
+		projectIssue.completeIt();
 
 		//	Create Project Line
 		MProjectLine projectLine = new MProjectLine(project);

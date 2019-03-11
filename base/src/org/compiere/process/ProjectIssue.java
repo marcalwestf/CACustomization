@@ -116,7 +116,7 @@ public class ProjectIssue extends ProjectIssueAbstract
 					else if (inOut.getDescription() != null)
 						projectIssue.setDescription(inOut.getDescription());
 					projectIssue.setM_InOutLine_ID(inOutLine.getM_InOutLine_ID());
-					projectIssue.process();
+					projectIssue.completeIt();
 
 					//	Find/Create Project Line
 					MProjectLine firstProjectLine = null;
@@ -180,7 +180,7 @@ public class ProjectIssue extends ProjectIssueAbstract
 			else if (expenseLine.getDescription() != null)
 				projectIssue.setDescription(expenseLine.getDescription());
 			projectIssue.setS_TimeExpenseLine_ID(expenseLine.getS_TimeExpenseLine_ID());
-			projectIssue.process();
+			projectIssue.completeIt();
 			//	Find/Create Project Line
 			MProjectLine projectLine = new MProjectLine(project);
 			projectLine.setMProjectIssue(projectIssue);		//	setIssue
@@ -217,7 +217,7 @@ public class ProjectIssue extends ProjectIssueAbstract
 			projectIssue.setDescription(getDescription());
 		else if (projectLine.getDescription() != null)
 			projectIssue.setDescription(projectLine.getDescription());
-		projectIssue.process();
+		projectIssue.completeIt();
 
 		//	Update Line
 		projectLine.setMProjectIssue(projectIssue);
@@ -244,7 +244,7 @@ public class ProjectIssue extends ProjectIssueAbstract
 			projectIssue.setMovementDate(getMovementDate());
 		if (getDescription() != null && getDescription().length() > 0)
 			projectIssue.setDescription(getDescription());
-		projectIssue.process();
+		projectIssue.completeIt();
 
 		//	Create Project Line
 		MProjectLine projectLine = new MProjectLine(project);
