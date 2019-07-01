@@ -17,21 +17,51 @@
 
 package org.adempiere.process;
 
-/** Generated Process for (SB_InOutGenerateFromOrderLine)
+import org.compiere.process.SvrProcess;
+
+/** Generated Process for (SB_HRProcess_Complete)
  *  @author ADempiere (generated) 
  *  @version Release 3.9.1
  */
-public class SB_InOutGenerateFromOrderLine extends SB_InOutGenerateFromOrderLineAbstract
-{
-	@Override
-	protected void prepare()
-	{
-		super.prepare();
-	}
+public abstract class SB_HRProcess_CompleteAbstract extends SvrProcess {
+	/** Process Value 	*/
+	private static final String VALUE_FOR_PROCESS = "SB_HRProcess_Complete";
+	/** Process Name 	*/
+	private static final String NAME_FOR_PROCESS = "SB_HRProcess_Complete";
+	/** Process Id 	*/
+	private static final int ID_FOR_PROCESS = 1000048;
+	/**	Parameter Name for Document Action	*/
+	public static final String DOCACTION = "DocAction";
+	/**	Parameter Value for Document Action	*/
+	private String docAction;
 
 	@Override
-	protected String doIt() throws Exception
-	{
-		return "";
+	protected void prepare() {
+		docAction = getParameterAsString(DOCACTION);
+	}
+
+	/**	 Getter Parameter Value for Document Action	*/
+	protected String getDocAction() {
+		return docAction;
+	}
+
+	/**	 Setter Parameter Value for Document Action	*/
+	protected void setDocAction(String docAction) {
+		this.docAction = docAction;
+	}
+
+	/**	 Getter Parameter Value for Process ID	*/
+	public static final int getProcessId() {
+		return ID_FOR_PROCESS;
+	}
+
+	/**	 Getter Parameter Value for Process Value	*/
+	public static final String getProcessValue() {
+		return VALUE_FOR_PROCESS;
+	}
+
+	/**	 Getter Parameter Value for Process Name	*/
+	public static final String getProcessName() {
+		return NAME_FOR_PROCESS;
 	}
 }

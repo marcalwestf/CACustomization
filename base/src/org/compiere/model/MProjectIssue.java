@@ -296,7 +296,7 @@ public class MProjectIssue extends X_C_ProjectIssue implements IDocumentLine, Do
 		//Ignore the Material Policy when is Reverse Correction
 		if(!isReversal())
 			checkMaterialPolicy();
-
+		
 		if (getM_AttributeSetInstance_ID() == 0) {
 			String whereClause = "C_ProjectIssue_ID=?";
 			List<X_C_ProjectIssueMA> mas = new Query(getCtx(), X_C_ProjectIssueMA.Table_Name, whereClause, get_TrxName())
@@ -628,6 +628,7 @@ public class MProjectIssue extends X_C_ProjectIssue implements IDocumentLine, Do
 		reversal.addDescription(msgadd.toString());
 		reversal.setReversal_ID(getC_ProjectIssue_ID());
 		reversal.saveEx(get_TrxName());
+		copyProjectMA(reversal);
 
 		if (!reversal.processIt(DocAction.ACTION_Complete))
 		{
@@ -741,6 +742,23 @@ public class MProjectIssue extends X_C_ProjectIssue implements IDocumentLine, Do
 		//
 		return false;
 	}	//	process
+	
+	private void copyProjectMA(MProjectIssue reversal) {
+		String whereClause = "C_ProjectIssue_ID=?";
+		List<X_C_ProjectIssueMA> mas = new Query(getCtx(), X_C_ProjectIssueMA.Table_Name, whereClause, get_TrxName())
+				.setClient_ID()
+				.setParameters(reversal.getReversal_ID())
+				.list();
+		for (X_C_ProjectIssueMA projectIssueMA_Orginal : mas)
+		{
+			X_C_ProjectIssueMA projectIssueMA_New = new X_C_ProjectIssueMA(getCtx(), 0, get_TrxName());
+			projectIssueMA_New.setC_ProjectIssue_ID(reversal.getC_ProjectIssue_ID());
+			projectIssueMA_New.setM_AttributeSetInstance_ID(projectIssueMA_Orginal.getM_AttributeSetInstance_ID());
+			projectIssueMA_New.setMovementQty(projectIssueMA_Orginal.getMovementQty().negate());
+			projectIssueMA_New.saveEx();			
+		}
+
+	}
 
 
 

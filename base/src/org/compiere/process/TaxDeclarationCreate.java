@@ -31,6 +31,7 @@ import org.compiere.model.MTaxDeclaration;
 import org.compiere.model.MTaxDeclarationAcct;
 import org.compiere.model.MTaxDeclarationLine;
 import org.compiere.model.Query;
+import org.compiere.model.X_C_DocType;
 import org.compiere.util.AdempiereSystemError;
 import org.compiere.util.DB;
 
@@ -114,9 +115,15 @@ public class TaxDeclarationCreate extends TaxDeclarationCreateAbstract
 		{
 			if (invoiceTax.getC_Tax().getC_TaxCategory_ID() != taxDeclaration.getC_TaxCategory_ID())
 				continue;
-			if (TaxDeclarationLineExists(invoiceTax.getC_Invoice_ID(), invoiceTax.getC_Tax_ID()))
+			if (TaxDeclarationLineExists(invoiceTax.getC_Invoice_ID()))
 				continue;
 			MTaxDeclarationLine taxDeclarationLine = new MTaxDeclarationLine (taxDeclaration, invoice, invoiceTax);
+			Boolean isCreditMemo = invoice.getC_DocType().getDocBaseType().equals(X_C_DocType.DOCBASETYPE_ARCreditMemo)
+					||invoice.getC_DocType().getDocBaseType().equals(X_C_DocType.DOCBASETYPE_APCreditMemo)?true:false; 
+			if (isCreditMemo) {
+				taxDeclarationLine.setTaxAmt(taxDeclarationLine.getTaxAmt().negate());
+				taxDeclarationLine.setTaxBaseAmt(taxDeclarationLine.getTaxBaseAmt().negate());
+			}
 			taxDeclarationLine.setLine((m_noLines+1) * 10);
 			taxDeclarationLine.saveEx();
 			m_noLines++;
@@ -144,10 +151,10 @@ public class TaxDeclarationCreate extends TaxDeclarationCreateAbstract
 		});
 	}
 	
-	private Boolean TaxDeclarationLineExists(int invoiceID, int taxID) {
-		String whereClause = "C_Invoice_ID=? and C_Tax_ID=?";
+	private Boolean TaxDeclarationLineExists(int invoiceID) {
+		String whereClause = "C_Invoice_ID=?";
 		int no = new Query(getCtx(), MTaxDeclarationLine.Table_Name, whereClause, get_TrxName())
-				.setParameters(invoiceID, taxID)
+				.setParameters(invoiceID)
 				.count();
 		return  no>0?true:false;
 		

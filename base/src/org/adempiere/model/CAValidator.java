@@ -31,9 +31,11 @@ import org.compiere.acct.Fact;
 import org.compiere.acct.FactLine;
 import org.compiere.model.I_C_PaySelection;
 import org.compiere.model.MAllocationHdr;
+import org.compiere.model.MBPartner;
 import org.compiere.model.MBankAccount;
 import org.compiere.model.MBankStatement;
 import org.compiere.model.MBankStatementLine;
+import org.compiere.model.MCharge;
 import org.compiere.model.MClient;
 import org.compiere.model.MCommissionAmt;
 import org.compiere.model.MCommissionDetail;
@@ -53,11 +55,14 @@ import org.compiere.model.MPaySelectionCheck;
 import org.compiere.model.MPaySelectionLine;
 import org.compiere.model.MPayment;
 import org.compiere.model.MPaymentBatch;
+import org.compiere.model.MPaymentTerm;
+import org.compiere.model.MProduct;
 import org.compiere.model.MProduction;
 import org.compiere.model.MProject;
 import org.compiere.model.MProjectIssue;
 import org.compiere.model.MProjectLine;
 import org.compiere.model.MRequisition;
+import org.compiere.model.MTaxDeclarationLine;
 import org.compiere.model.MTimeExpense;
 import org.compiere.model.MTimeExpenseLine;
 import org.compiere.model.ModelValidationEngine;
@@ -72,8 +77,9 @@ import org.compiere.util.Env;
 import org.eevolution.model.MDDOrder;
 import org.eevolution.model.MHRAttribute;
 import org.eevolution.model.MHRConcept;
+import org.eevolution.model.MHREmployee;
 import org.eevolution.model.MPPOrder;
-import org.python.antlr.ast.GeneratorExp.generators_descriptor;
+import org.eevolution.model.X_C_TaxDefinition;
 
 
 /**
@@ -117,6 +123,7 @@ public class CAValidator implements ModelValidator
 		engine.addModelChange(MInvoiceLine.Table_Name, this);
 		engine.addModelChange(MCommissionDetail.Table_Name, this);
 		engine.addModelChange(MTimeExpenseLine.Table_Name, this);
+		//engine.addModelChange(MTaxDeclarationLine.Table_Name, this);
 		
 		engine.addDocValidate(MPaySelection.Table_Name	, this);
 		engine.addDocValidate(MBankStatement.Table_Name, this);
@@ -156,6 +163,15 @@ public class CAValidator implements ModelValidator
 				error = InvoiceTypeTaxDeclaration(po);		
 			if (po.get_TableName().equals(MTimeExpenseLine.Table_Name))
 				error = calculateLabourCost(po);
+			if (po.get_TableName().equals(MOrderLine.Table_Name)
+					&& (po.is_ValueChanged("M_Product_ID") || po.is_ValueChanged("C_Charge_ID")))
+				error = setOrderLineTax(po);
+
+			if (po.get_TableName().equals(MInvoiceLine.Table_Name)
+					&& (po.is_ValueChanged("M_Product_ID") || po.is_ValueChanged("C_Charge_ID")))
+				error = setInvoiceLineTax(po);
+			//if (po.get_TableName().equals(MTaxDeclarationLine.Table_Name) && type == ModelValidator.TYPE_BEFORE_NEW)
+			//	error = updateTaxDeclarationLIne(po);
 		}
 
 		if (type == ModelValidator.TYPE_AFTER_CHANGE ){
@@ -168,6 +184,8 @@ public class CAValidator implements ModelValidator
 			}
 			
 		}
+		if (type == ModelValidator.TYPE_BEFORE_NEW && po.get_TableName().equals(MOrder.Table_Name))
+			error = UpdatePaymentRule(po);
 		
 		
 		
@@ -179,6 +197,16 @@ public class CAValidator implements ModelValidator
 		if(order.getC_DocTypeTarget().isHasCharges() && order.getUser4_ID() <=0)
 		{
 			return "EL campo retaceo es obligatorio";
+		}
+		return "";
+	}
+	
+
+	private String UpdatePaymentRule(PO po) {
+		MOrder order = (MOrder)po;
+		if(order.getC_DocTypeTarget().getDocBaseType().equals(MDocType.DOCSUBTYPESO_POSOrder))
+		{
+			order.setPaymentRule(MOrder.PAYMENTRULE_Cash);
 		}
 		return "";
 	}
@@ -203,6 +231,21 @@ public class CAValidator implements ModelValidator
 				orderLine.saveEx();            
 			}
 		}
+		return "";
+	}
+	
+	
+
+
+	private String updateTaxDeclarationLIne(PO po) {
+		MTaxDeclarationLine declarationLine = (MTaxDeclarationLine)po;
+		if (declarationLine.getC_Invoice().getC_DocType_ID() != 1000455)
+			return "";
+		String sql = "select ivl.linenetamt from c_Invoiceline ivl inner join c_INvoice i on ivl.c_Invoice_ID=i.c_Invoice_ID "
+				+ "	where docstatus in ('CO','CL') and ivl.ref_Invoice_ID =?";
+		BigDecimal taxamt = DB.getSQLValueBDEx(declarationLine.get_TrxName(), sql, declarationLine.getC_Invoice_ID());
+		declarationLine.setTaxAmt(taxamt);
+		
 		return "";
 	}
 	
@@ -258,7 +301,9 @@ public class CAValidator implements ModelValidator
 		if(expenseLine.is_ValueChanged("FeeAmt") || 
 				expenseLine.is_ValueChanged("TravelCost") ||
 				expenseLine.is_ValueChanged("HR_Concept_ID") ||
-				expenseLine.is_ValueChanged(MTimeExpenseLine.COLUMNNAME_Qty))
+				expenseLine.is_ValueChanged(MTimeExpenseLine.COLUMNNAME_Qty) ||
+				expenseLine.is_ValueChanged(MTimeExpenseLine.COLUMNNAME_Description)
+				)
 			changed = true;
 		if (!changed)
 			return "";
@@ -267,14 +312,27 @@ public class CAValidator implements ModelValidator
 		BigDecimal factor = productattribute.getAmount();
 		
 		MHRConcept salaryConcept = MHRConcept.getByValue(expenseLine.getCtx(), "Salarios", expenseLine.get_TrxName());
-
-		MHRAttribute salaryAttribute = MHRAttribute.getByConceptAndPartnerId(salaryConcept, expenseLine.getC_BPartner_ID(), 0, null, null, null);
-		if (salaryAttribute == null || salaryAttribute.getAmount().signum()==0)
-			return "Falta definir el sueldo básico para este empleado";
-		BigDecimal salaryhour = salaryAttribute !=null? salaryAttribute.getAmount().divide(new BigDecimal(30.00), 2, BigDecimal.ROUND_HALF_UP)
-				:Env.ZERO;
+		MHREmployee employee = MHREmployee.getActiveEmployee(A_PO.getCtx(), expenseLine.getC_BPartner_ID(), A_PO.get_TrxName());
+		if (employee == null) {
+			employee = new Query(expenseLine.getCtx(), MHREmployee.Table_Name, "C_BPartner_ID=?", expenseLine.get_TrxName())
+					.setParameters(expenseLine.getC_BPartner_ID())
+					.setOrderBy("HR_Employee_ID desc ")
+					.first();
+			if (employee == null)
+				return expenseLine.getC_BPartner().getName() + " no esta en planilla";
+			}
+		if (employee.getHR_Payroll_ID() == 0)
+			return expenseLine.getC_BPartner().getName() + " sin contrato";
+		MHRAttribute salaryAttribute = MHRAttribute.getByConceptAndEmployee(salaryConcept, employee, employee.getHR_Payroll_ID(), 
+				expenseLine.getParent().getDateReport(), expenseLine.getParent().getDateReport());
 		
-		salaryhour = salaryhour.divide(new BigDecimal(8.00), 2, BigDecimal.ROUND_HALF_UP);
+		if (salaryAttribute == null || salaryAttribute.getAmount().signum()==0)
+			return expenseLine.getC_BPartner().getName() + " Falta definir el sueldo básico para este empleado";
+		int precision = salaryConcept.getStdPrecision() > 0? salaryConcept.getStdPrecision()
+				: expenseLine.getC_Currency().getStdPrecision();		
+		BigDecimal salaryhour = salaryAttribute.getAmount().divide(new BigDecimal(30.00), precision, BigDecimal.ROUND_HALF_UP);
+		
+		salaryhour = salaryhour.divide(new BigDecimal(8.00), precision, BigDecimal.ROUND_HALF_UP);
 		salaryhour = salaryhour.multiply(factor);
 		BigDecimal costtotal = salaryhour.multiply(expenseLine.getQty());
 		expenseLine.setExpenseAmt(salaryhour);
@@ -289,19 +347,21 @@ public class CAValidator implements ModelValidator
 		}
 		BigDecimal feeAmt = (BigDecimal)expenseLine.get_Value("FeeAmt");
 		BigDecimal travelCost =  (BigDecimal)expenseLine.get_Value("TravelCost");
-		if (conceptProduct.isInvoiced()) {
-			expenseLine.setQtyReimbursed(expenseLine.getQty());
-			expenseLine.setPriceReimbursed(expenseLine.getExpenseAmt().add(feeAmt).add(travelCost));			
-		}
-		else
-		{
-			expenseLine.setQtyReimbursed(Env.ONE);
-			expenseLine.setPriceReimbursed(feeAmt.add(travelCost));
-		}
+		BigDecimal prepaymentAmt =  (BigDecimal)expenseLine.get_Value("PrepaymentAmt");
+		expenseLine.setQtyReimbursed(Env.ONE);
+		expenseLine.setPriceReimbursed(feeAmt.add(travelCost).subtract(prepaymentAmt));
+		if (!expenseLine.getParent().getDocStatus().equals("CO"))		
+			return "";
+		String sqlUpdate = 
+				"update c_ProjectLine pl  set committedamt = (select coalesce(convertedamt,0) + coalesce(pricereimbursed,0) from s_timeexpenseline where s_Timeexpenseline_ID=pl.s_Timeexpenseline_ID)" + 
+				" where pl.s_timeexpenseline_ID = " + expenseLine.getS_TimeExpenseLine_ID();
+		int no = DB.executeUpdateEx(sqlUpdate,  expenseLine.get_TrxName());
+		
 		return "";
 	}
 	
 	private String PayselectionGeneratePayment(PO po) { 
+		
 		AtomicInteger lastDocumentNo = new AtomicInteger();
 		List<MPaySelectionCheck> paySelectionChecks = MPaySelectionCheck.get(po.getCtx(), po.get_ID(), po.get_TrxName());
 		paySelectionChecks.stream().filter(psc -> psc != null).forEach(paySelectionCheck ->
@@ -728,11 +788,23 @@ public class CAValidator implements ModelValidator
 		//	Find/Create Project Line
 		MProjectLine projectLine = new MProjectLine(project);
 		projectLine.setMProjectIssue(projectIssue);		//	setIssue
-		projectLine.setCommittedAmt(timeExpenseLine.getConvertedAmt());
+		projectLine.setCommittedAmt(timeExpenseLine.getConvertedAmt().add(timeExpenseLine.getPriceReimbursed()));
 		projectLine.setM_Product_ID(projectIssue.getM_Product_ID());
 		projectLine.set_ValueOfColumn(MTimeExpenseLine.COLUMNNAME_S_TimeExpenseLine_ID, projectIssue.getS_TimeExpenseLine_ID());
 		projectLine.saveEx();
 		//return "@Created@ " + counter.get();		
+	}
+	
+	private void updateLine(MTimeExpenseLine timeExpenseLine) {
+		//	Create Issue
+
+		if (!timeExpenseLine.getParent().getDocStatus().equals("CO"))		
+			return ;
+		String sqlUpdate = 
+				"update c_ProjectLine pl  set committedamt = (select coalesce(convertedamt,0) + coalesce(pricereimbursed,0) from s_timeexpenseline where s_Timeexpenseline_ID=pl.s_Timeexpenseline_ID)" + 
+				" where pl.s_timeexpenseline_ID = " + timeExpenseLine.getS_TimeExpenseLine_ID();
+		int no = DB.executeUpdateEx(sqlUpdate,  timeExpenseLine.get_TrxName());
+		
 	}
 	
 
@@ -778,6 +850,104 @@ public class CAValidator implements ModelValidator
 				fLine.set_ValueOfColumn("DocumentNo", Documentno);
 			}
 		}		
+		return "";
+	}
+	
+	private String setOrderLineTax(PO A_PO) {
+
+		//import org.compoere.model.MProduct;
+		//import org.compoere.model.MBPartner;
+		//import org.compoere.model.MCharge;
+		//import org.compoere.model.X_C_TaxDefinition;
+		//import org.compoere.model.Query;
+
+		//import java.util.ArrayList;
+		MOrderLine orderLine = (MOrderLine)A_PO;
+		Boolean	isSOTrx = orderLine.getParent().isSOTrx();
+		int shipC_BPartner = orderLine.getParent().getC_BPartner_ID();
+		if (orderLine.getM_Product_ID() == 0 && orderLine.getC_Charge_ID() == 0)
+			return "";		//
+		ArrayList<Object> params = new ArrayList<Object>();
+		params.add(isSOTrx);
+		//	Check Partner Location
+		StringBuffer whereClause = new StringBuffer();
+		whereClause.append("c_Tax_ID in (select c_Tax_ID from c_Tax t where case when ? = 'Y' then t.sopotype in ('B','S') else t.sopotype in('B','P') end)");
+		whereClause.append(" and (c_taxgroup_ID =? or c_taxgroup_ID is null)");
+		MBPartner bpartner = new MBPartner(Env.getCtx(), shipC_BPartner, null);
+		params.add(bpartner.getC_TaxGroup_ID());
+		if (orderLine.getC_Charge_ID() != 0)
+		{
+			whereClause.append(" AND (c_taxtype_ID =? or c_taxtype_ID is null)");
+			params.add(orderLine.getC_Charge().getC_TaxType_ID());
+		}
+		else if (orderLine.getM_Product_ID() != 0)
+		{
+			whereClause.append(" AND (C_Taxtype_ID =? or C_TaxType_ID is null)");
+			params.add(orderLine.getM_Product().getC_TaxType_ID());
+		}
+		X_C_TaxDefinition taxdefinition = new Query(Env.getCtx(), X_C_TaxDefinition.Table_Name, whereClause.toString(), null)
+				.setClient_ID()
+				.setOnlyActiveRecords(true)
+				.setParameters(params)
+				.setOrderBy("seqNo")
+				.first();
+		if (taxdefinition == null || taxdefinition.getC_Tax_ID() == 0) {
+			return "";		}
+		else
+			orderLine.setC_Tax_ID(taxdefinition.getC_Tax_ID());
+		Integer i = orderLine.get_ID();
+		Object object  = (Object)i;
+		//
+		return "";
+	}
+	
+
+	
+	private String setInvoiceLineTax(PO A_PO) {
+
+		//import org.compoere.model.MProduct;
+		//import org.compoere.model.MBPartner;
+		//import org.compoere.model.MCharge;
+		//import org.compoere.model.X_C_TaxDefinition;
+		//import org.compoere.model.Query;
+
+		//import java.util.ArrayList;
+		MInvoiceLine invoiceLine = (MInvoiceLine)A_PO;
+		if (invoiceLine.getC_OrderLine_ID() >0)
+			return "";
+		Boolean	isSOTrx = invoiceLine.getParent().isSOTrx();
+		int shipC_BPartner = invoiceLine.getParent().getC_BPartner_ID();
+		if (invoiceLine.getM_Product_ID() == 0 && invoiceLine.getC_Charge_ID() == 0)
+			return "";		//
+		ArrayList<Object> params = new ArrayList<Object>();
+		params.add(isSOTrx);
+		//	Check Partner Location
+		StringBuffer whereClause = new StringBuffer();
+		whereClause.append("c_Tax_ID in (select c_Tax_ID from c_Tax t where case when ? = 'Y' then t.sopotype in ('B','S') else t.sopotype in('B','P') end)");
+		whereClause.append(" and (c_taxgroup_ID =? or c_taxgroup_ID is null)");
+		MBPartner bpartner = new MBPartner(Env.getCtx(), shipC_BPartner, null);
+		params.add(bpartner.getC_TaxGroup_ID());
+		if (invoiceLine.getC_Charge_ID() != 0)
+		{
+			whereClause.append(" AND (c_taxtype_ID =? or c_taxtype_ID is null)");
+			params.add(invoiceLine.getC_Charge().getC_TaxType_ID());
+		}
+		else if (invoiceLine.getM_Product_ID() != 0)
+		{
+			whereClause.append(" AND (C_Taxtype_ID =? or C_TaxType_ID is null)");
+			params.add(invoiceLine.getM_Product().getC_TaxType_ID());
+		}
+		X_C_TaxDefinition taxdefinition = new Query(Env.getCtx(), X_C_TaxDefinition.Table_Name, whereClause.toString(), null)
+				.setClient_ID()
+				.setOnlyActiveRecords(true)
+				.setParameters(params)
+				.setOrderBy("seqNo")
+				.first();
+		if (taxdefinition == null || taxdefinition.getC_Tax_ID() == 0) {
+			return "";		}
+		else
+			invoiceLine.setC_Tax_ID(taxdefinition.getC_Tax_ID());
+		//
 		return "";
 	}
 

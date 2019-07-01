@@ -1491,7 +1491,7 @@ public class MInvoice extends X_C_Invoice implements DocAction , DocumentReversa
 			return true;
 		log.fine("");
 		//	Delete Taxes
-		DB.executeUpdateEx("DELETE C_InvoiceTax WHERE C_Invoice_ID=" + getC_Invoice_ID(), get_TrxName());
+		int no = DB.executeUpdateEx("DELETE C_InvoiceTax WHERE C_Invoice_ID=" + getC_Invoice_ID(), get_TrxName());
 		invoiceTaxes = null;
 
 		//	Lines

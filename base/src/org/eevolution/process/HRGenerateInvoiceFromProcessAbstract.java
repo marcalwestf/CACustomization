@@ -17,6 +17,7 @@
 
 package org.eevolution.process;
 
+import java.math.BigDecimal;
 import java.sql.Timestamp;
 import org.compiere.process.SvrProcess;
 
@@ -45,6 +46,8 @@ public abstract class HRGenerateInvoiceFromProcessAbstract extends SvrProcess {
 	public static final String DATEINVOICED = "DateInvoiced";
 	/**	Parameter Name for Invoice	*/
 	public static final String C_INVOICE_ID = "C_Invoice_ID";
+	/**	Parameter Name for Control Amount	*/
+	public static final String CONTROLAMT = "ControlAmt";
 	/**	Parameter Value for Business Partner 	*/
 	private int bPartnerId;
 	/**	Parameter Value for Partner Location	*/
@@ -59,6 +62,8 @@ public abstract class HRGenerateInvoiceFromProcessAbstract extends SvrProcess {
 	private Timestamp dateInvoiced;
 	/**	Parameter Value for Invoice	*/
 	private int invoiceId;
+	/**	Parameter Value for Control Amount	*/
+	private BigDecimal controlAmt;
 
 	@Override
 	protected void prepare() {
@@ -69,6 +74,7 @@ public abstract class HRGenerateInvoiceFromProcessAbstract extends SvrProcess {
 		chargeId = getParameterAsInt(C_CHARGE_ID);
 		dateInvoiced = getParameterAsTimestamp(DATEINVOICED);
 		invoiceId = getParameterAsInt(C_INVOICE_ID);
+		controlAmt = getParameterAsBigDecimal(CONTROLAMT);
 	}
 
 	/**	 Getter Parameter Value for Business Partner 	*/
@@ -139,6 +145,16 @@ public abstract class HRGenerateInvoiceFromProcessAbstract extends SvrProcess {
 	/**	 Setter Parameter Value for Invoice	*/
 	protected void setInvoiceId(int invoiceId) {
 		this.invoiceId = invoiceId;
+	}
+
+	/**	 Getter Parameter Value for Control Amount	*/
+	protected BigDecimal getControlAmt() {
+		return controlAmt;
+	}
+
+	/**	 Setter Parameter Value for Control Amount	*/
+	protected void setControlAmt(BigDecimal controlAmt) {
+		this.controlAmt = controlAmt;
 	}
 
 	/**	 Getter Parameter Value for Process ID	*/

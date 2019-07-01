@@ -23,16 +23,19 @@ import java.sql.ResultSet;
 import java.util.ArrayList;
 import java.util.Optional;
 import java.util.logging.Level;
-
+import org.compiere.model.MAccount;
 import org.compiere.model.MAcctSchema;
+import org.compiere.model.MBPartner;
 import org.compiere.model.MCostDetail;
 import org.compiere.model.MProduct;
 import org.compiere.model.MProject;
 import org.compiere.model.MProjectIssue;
+import org.compiere.model.MTimeExpenseLine;
 import org.compiere.model.ProductCost;
 import org.compiere.util.DB;
 import org.compiere.util.Env;
-
+import org.eevolution.model.MHRConcept;
+import org.eevolution.model.X_HR_Concept_Acct;
 /**
  *	Project Issue.
  *	Note:
@@ -54,10 +57,7 @@ public class Doc_ProjectIssue extends Doc
 	{
 		super (ass, MProjectIssue.class, rs, DOCTYPE_ProjectIssue, trxName);
 	}   //  Doc_ProjectIssue
-
-	/**	Pseudo Line								*/
 	private DocLine				m_line = null;
-	/** Issue									*/
 	private MProjectIssue		m_issue = null;
 
 	/**
@@ -120,9 +120,6 @@ public class Doc_ProjectIssue extends Doc
 	{
 		//  create Fact Header
 		ArrayList<Fact> facts = new ArrayList<Fact>();
-		if(m_issue.getS_TimeExpenseLine_ID() > 0) {
-			return facts;
-		}
 		Fact fact = new Fact(this, as, Fact.POST_Actual);
 		setC_Currency_ID (as.getC_Currency_ID());
 
@@ -131,8 +128,8 @@ public class Doc_ProjectIssue extends Doc
 		MProduct product = MProduct.get(getCtx(), m_issue.getM_Product_ID());
 			
 		//  Line pointers
-		FactLine dr = null;
-		FactLine cr = null;
+		FactLine debitLine = null;
+		FactLine creditLine = null;
 
 		//  Issue Cost
 		BigDecimal costs = null;
@@ -144,8 +141,41 @@ public class Doc_ProjectIssue extends Doc
 		}
 		else if (m_issue.getS_TimeExpenseLine_ID() != 0) {
 
+			MTimeExpenseLine timeExpenseLine = new  MTimeExpenseLine(getCtx(), m_issue.getS_TimeExpenseLine_ID(), getTrxName());
+			if (timeExpenseLine.get_ValueAsInt("HR_Concept_ID")> 0)
+				return facts;
 			costs = getLaborCost(as);
 			total = costs;
+
+			//  Project         DR
+			int acctType = ACCTTYPE_ProjectWIP;
+			if (MProject.PROJECTCATEGORY_AssetProject.equals(ProjectCategory))
+				acctType = ACCTTYPE_ProjectAsset;
+			MAccount debitAccount = getAccount(acctType, as);
+			/*MHRConcept concept = MHRConcept.getById(as.getCtx(), timeExpenseLine.get_ValueAsInt("HR_Concept_ID") , getTrxName());
+			//	Get Concept Account
+
+			X_HR_Concept_Acct conceptAcct = concept.getConceptAcct(
+					Optional.ofNullable(as.getC_AcctSchema_ID()),
+					Optional.ofNullable(null),
+					Optional.ofNullable(timeExpenseLine.getC_BPartner().getC_BP_Group_ID()));*/
+			//MAccount accountBPD = MAccount.getValidCombination (getCtx(), conceptAcct.getHR_Expense_Acct() , getTrxName());
+			debitLine = fact.createLine(m_line, debitAccount, as.getC_Currency_ID(),costs, null);
+			debitLine.setDescription(timeExpenseLine.getM_Product().getName() );
+			debitLine.saveEx();
+			acctType = ProductCost.ACCTTYPE_P_Asset;
+			if (product.isService())
+				acctType = ProductCost.ACCTTYPE_P_Expense;
+			creditLine = fact.createLine(m_line,
+				m_line.getAccount(acctType,as),
+				as.getC_Currency_ID(), null, costs);
+			creditLine.setM_Locator_ID(m_line.getM_Locator_ID());
+			creditLine.setLocationFromLocator(m_line.getM_Locator_ID(), true);	// from Loc
+			creditLine.setDescription(timeExpenseLine.getM_Product().getName() );
+			creditLine.saveEx();
+			facts.add(fact);
+			return facts;
+		
 		}
 		if (costs == null)	//	standard Product Costs
 		{	
@@ -170,19 +200,19 @@ public class Doc_ProjectIssue extends Doc
 		int acctType = ACCTTYPE_ProjectWIP;
 		if (MProject.PROJECTCATEGORY_AssetProject.equals(ProjectCategory))
 			acctType = ACCTTYPE_ProjectAsset;
-		dr = fact.createLine(m_line,
+		debitLine = fact.createLine(m_line,
 			getAccount(acctType, as), as.getC_Currency_ID(), costs, null);
-		dr.setQty(m_line.getQty().negate());
+		debitLine.setQty(m_line.getQty().negate());
 		
 		//  Inventory               CR
 		acctType = ProductCost.ACCTTYPE_P_Asset;
 		if (product.isService())
 			acctType = ProductCost.ACCTTYPE_P_Expense;
-		cr = fact.createLine(m_line,
+		creditLine = fact.createLine(m_line,
 			m_line.getAccount(acctType,as),
 			as.getC_Currency_ID(), null, costs);
-		cr.setM_Locator_ID(m_line.getM_Locator_ID());
-		cr.setLocationFromLocator(m_line.getM_Locator_ID(), true);	// from Loc
+		creditLine.setM_Locator_ID(m_line.getM_Locator_ID());
+		creditLine.setLocationFromLocator(m_line.getM_Locator_ID(), true);	// from Loc
 		//
 		facts.add(fact);
 		return facts;
@@ -243,7 +273,9 @@ public class Doc_ProjectIssue extends Doc
 		// Todor Lulov 30.01.2008		
 		BigDecimal retValue = Env.ZERO;
 		BigDecimal qty = Env.ZERO;
-
+		if (m_issue.getS_TimeExpenseLine_ID() > 0) {
+			return Env.ZERO;
+		}
 		String sql = "SELECT ConvertedAmt, Qty FROM S_TimeExpenseLine " + 
 			  " WHERE S_TimeExpenseLine.S_TimeExpenseLine_ID = ?";
 		PreparedStatement pstmt = null;
@@ -274,5 +306,17 @@ public class Doc_ProjectIssue extends Doc
 		}		
 		return retValue;
 	}	//	getLaborCost
+	
+	private X_HR_Concept_Acct getConceptAcct(int conceptID,MAcctSchema as, MBPartner bpartner) {
+
+		MHRConcept concept = MHRConcept.getById(getCtx(),conceptID , getTrxName());
+		//	Get Concept Account
+		X_HR_Concept_Acct conceptAcct = concept.getConceptAcct(
+				Optional.ofNullable(as.getC_AcctSchema_ID()),
+				Optional.ofNullable(null),
+				Optional.ofNullable(bpartner.getC_BP_Group_ID()));
+
+		return conceptAcct;
+	}
 
 }	//	DocProjectIssue
