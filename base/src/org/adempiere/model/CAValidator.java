@@ -204,7 +204,7 @@ public class CAValidator implements ModelValidator
 
 	private String UpdatePaymentRule(PO po) {
 		MOrder order = (MOrder)po;
-		if(order.getC_DocTypeTarget().getDocBaseType().equals(MDocType.DOCSUBTYPESO_POSOrder))
+		if(order.getC_DocTypeTarget().getDocSubTypeSO().equals(MDocType.DOCSUBTYPESO_POSOrder))
 		{
 			order.setPaymentRule(MOrder.PAYMENTRULE_Cash);
 		}

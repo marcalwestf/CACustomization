@@ -1650,7 +1650,7 @@ public class MInvoice extends X_C_Invoice implements DocAction , DocumentReversa
 		}
 
   		//	Create Cash
-		if (PAYMENTRULE_Cash.equals(getPaymentRule()) && !fromPOS )
+		if (PAYMENTRULE_Cash.equals(getPaymentRule()) && !fromPOS ) //Distinguish between cash as payment and cash with cashbook
 		{
 			if (MSysConfig.getBooleanValue("CASH_AS_PAYMENT", true, getAD_Client_ID()))
 			{
