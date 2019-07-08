@@ -1,0 +1,316 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="Z_SHW_EstadoCuentaBPGROUP" pageWidth="1190" pageHeight="842" orientation="Landscape" columnWidth="1130" leftMargin="30" rightMargin="30" topMargin="20" bottomMargin="20" uuid="02772633-40e7-4900-97d3-30cf4a7d32a4">
+	<property name="ireport.scriptlethandling" value="0"/>
+	<property name="ireport.encoding" value="UTF-8"/>
+	<property name="ireport.zoom" value="2.0"/>
+	<property name="ireport.x" value="0"/>
+	<property name="ireport.y" value="0"/>
+	<import value="net.sf.jasperreports.engine.*"/>
+	<import value="java.util.*"/>
+	<import value="net.sf.jasperreports.engine.data.*"/>
+	<style name="Crosstab Data Text" hAlign="Center"/>
+	<subDataset name="datasetClientDaten" uuid="79e6abad-df23-4e4c-92c5-a391c98a53fe">
+		<parameter name="AD_Client_ID" class="java.math.BigDecimal">
+			<defaultValueExpression><![CDATA[]]></defaultValueExpression>
+		</parameter>
+		<queryString>
+			<![CDATA[select cli.printname, l1.city, l1.address1, cli.phone, cli.fax, cli.taxid, cli.duns
+,binarydata as logo, c1.name as country
+from
+ad_clientinfo cli
+left JOIN adempiere.c_location l1 ON cli.c_location_id = l1.c_location_id
+left join c_country c1 on l1.c_country_ID = c1.c_country_ID
+left join ad_image ai on cli.logo_ID = ai.ad_image_ID
+where cli.AD_Client_ID = $P{AD_Client_ID}]]>
+		</queryString>
+		<field name="printname" class="java.lang.String"/>
+		<field name="city" class="java.lang.String"/>
+		<field name="address1" class="java.lang.String"/>
+		<field name="phone" class="java.lang.String"/>
+		<field name="fax" class="java.lang.String"/>
+		<field name="taxid" class="java.lang.String"/>
+		<field name="duns" class="java.lang.String"/>
+		<field name="logo" class="java.io.InputStream"/>
+		<field name="country" class="java.lang.String"/>
+	</subDataset>
+	<parameter name="AD_Client_ID" class="java.math.BigDecimal">
+		<defaultValueExpression><![CDATA[]]></defaultValueExpression>
+	</parameter>
+	<parameter name="AD_USER_ID" class="java.lang.Integer"/>
+	<parameter name="HR_Process_ID" class="java.math.BigDecimal"/>
+	<queryString>
+		<![CDATA[select -- hm.*
+bp.value, bp.name,HCC.DESCRIPTION || hcc.name as category,
+he.startdate as bp_startdate,he.sscode, he.birthday, he.nationalcode, he.enddate
+, hd.name as department, hj.name as job,
+hp.name, hpe.startdate, hpe.enddate
+, hpr.name as payroll, bp.c_bpartner_ID, hpr.hr_payroll_ID
+,hcc.hr_concept_category_ID, hc.name as concept
+--, hc.name as concept, HCC.DESCRIPTION || hcc.name as category, hcc.hr_concept_category_ID
+, (select name from ad_user where ad_user_ID = $P{AD_USER_ID}) as user,
+
+case when hm.qty > 0 then hm.qty else hm.amount end as  amount,
+
+ hm.qty, hcc.description as seqNo, hpe.name as period, i.documentno as inv_docno, hc.hr_concept_ID, hp.name as processname, hp.documentno as processdocno
+
+
+from hr_movement hm-- --
+  left join hr_payroll hpr on hm.hr_payroll_ID = hpr.hr_payroll_ID
+ inner join c_bpartner bp on hm.c_bpartner_ID = bp.c_bpartner_ID
+ inner join hr_process hp on hm.hr_process_ID = hp.hr_process_ID
+ inner join hr_period hpe on hp.hr_period_ID = hpe.hr_period_ID
+ inner join hr_concept hc on hm.hr_concept_ID = hc.hr_concept_ID
+ inner join hr_concept_category hcc on hc.hr_concept_category_ID = hcc.hr_concept_category_ID
+ inner join hr_employee he on he.c_bpartner_ID = bp.c_bpartner_ID
+ left join hr_department hd on  he.hr_department_ID = hd.hr_department_ID
+ left join hr_job hj on he.hr_job_ID = hj.hr_job_ID
+ left join c_invoice i on hm.c_invoice_ID = i.c_invoice_ID
+ where hm. HR_Process_ID = $P{HR_Process_ID} and hcc.hr_concept_category_ID not in (1000000)]]>
+	</queryString>
+	<field name="value" class="java.lang.String"/>
+	<field name="name" class="java.lang.String"/>
+	<field name="category" class="java.lang.String"/>
+	<field name="bp_startdate" class="java.sql.Timestamp"/>
+	<field name="sscode" class="java.lang.String"/>
+	<field name="birthday" class="java.sql.Timestamp"/>
+	<field name="nationalcode" class="java.lang.String"/>
+	<field name="enddate" class="java.sql.Timestamp"/>
+	<field name="department" class="java.lang.String"/>
+	<field name="job" class="java.lang.String"/>
+	<field name="startdate" class="java.sql.Timestamp"/>
+	<field name="payroll" class="java.lang.String"/>
+	<field name="c_bpartner_id" class="java.math.BigDecimal"/>
+	<field name="hr_payroll_id" class="java.math.BigDecimal"/>
+	<field name="hr_concept_category_id" class="java.math.BigDecimal"/>
+	<field name="concept" class="java.lang.String"/>
+	<field name="user" class="java.lang.String"/>
+	<field name="amount" class="java.math.BigDecimal"/>
+	<field name="qty" class="java.math.BigDecimal"/>
+	<field name="seqno" class="java.lang.String"/>
+	<field name="period" class="java.lang.String"/>
+	<field name="inv_docno" class="java.lang.String"/>
+	<field name="hr_concept_id" class="java.math.BigDecimal"/>
+	<field name="processname" class="java.lang.String"/>
+	<field name="processdocno" class="java.lang.String"/>
+	<sortField name="name"/>
+	<sortField name="concept"/>
+	<background>
+		<band splitType="Stretch"/>
+	</background>
+	<title>
+		<band height="86" splitType="Stretch">
+			<componentElement>
+				<reportElement uuid="0843a8f2-078a-4425-8815-7d062cd0c740" x="1" y="3" width="551" height="45"/>
+				<jr:list xmlns:jr="http://jasperreports.sourceforge.net/jasperreports/components" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports/components http://jasperreports.sourceforge.net/xsd/components.xsd" printOrder="Vertical">
+					<datasetRun subDataset="datasetClientDaten" uuid="9af4f705-e28c-491c-865a-a999a4aa5be3">
+						<datasetParameter name="AD_Client_ID">
+							<datasetParameterExpression><![CDATA[$P{AD_Client_ID}]]></datasetParameterExpression>
+						</datasetParameter>
+						<connectionExpression><![CDATA[$P{REPORT_CONNECTION}]]></connectionExpression>
+					</datasetRun>
+					<jr:listContents height="45" width="551">
+						<image>
+							<reportElement uuid="a4533e05-5fc7-4120-bcb3-a772652c0aae" x="0" y="0" width="228" height="38"/>
+							<imageExpression><![CDATA[$F{logo}]]></imageExpression>
+						</image>
+						<textField>
+							<reportElement uuid="1a2bd964-ae7c-45af-bbcb-f355ece8bdd5" x="277" y="22" width="273" height="11"/>
+							<textElement>
+								<font size="8" isBold="true"/>
+							</textElement>
+							<textFieldExpression><![CDATA[$F{city}.concat(" ").concat($F{address1})
+.concat(" ").concat($F{country})]]></textFieldExpression>
+						</textField>
+						<textField isBlankWhenNull="true">
+							<reportElement uuid="69e76b70-b734-4767-a213-37d20b4673f4" x="277" y="33" width="273" height="11"/>
+							<textElement>
+								<font size="8" isBold="true"/>
+							</textElement>
+							<textFieldExpression><![CDATA["Teléfono: ".concat($F{phone}).concat(" Fax:").concat($F{fax})]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement uuid="efd35f66-e047-41a5-9ebe-bafe5bf6f543" x="277" y="11" width="273" height="11"/>
+							<textElement>
+								<font size="8" isBold="true"/>
+							</textElement>
+							<textFieldExpression><![CDATA["No de Registro: "
+.concat($F{duns})
+.concat(" NIT: ")
+.concat($F{taxid})]]></textFieldExpression>
+						</textField>
+						<textField>
+							<reportElement uuid="dc19b01e-c475-49ae-8a04-b906ffb7bbfb" x="277" y="0" width="273" height="11"/>
+							<textElement>
+								<font size="8" isBold="true"/>
+							</textElement>
+							<textFieldExpression><![CDATA[$F{printname}]]></textFieldExpression>
+						</textField>
+					</jr:listContents>
+				</jr:list>
+			</componentElement>
+			<textField>
+				<reportElement uuid="445234c7-0542-459b-840c-3f5e0364acda" x="0" y="48" width="552" height="20"/>
+				<textElement/>
+				<textFieldExpression><![CDATA["Planilla ".concat($F{processdocno})
+.concat(" ")
+.concat($F{processname})
+.concat(" ")
+.concat($F{period})]]></textFieldExpression>
+			</textField>
+		</band>
+	</title>
+	<columnFooter>
+		<band splitType="Stretch"/>
+	</columnFooter>
+	<summary>
+		<band height="100" splitType="Stretch">
+			<crosstab>
+				<reportElement uuid="54b07e4b-01d1-44d4-a732-842272622a05" x="0" y="0" width="1130" height="100"/>
+				<rowGroup name="name" width="70" totalPosition="End">
+					<bucket class="java.lang.String">
+						<bucketExpression><![CDATA[$F{name}]]></bucketExpression>
+					</bucket>
+					<crosstabRowHeader>
+						<cellContents backcolor="#F0F8FF" mode="Opaque">
+							<box>
+								<pen lineWidth="0.5" lineStyle="Solid" lineColor="#000000"/>
+							</box>
+							<textField>
+								<reportElement uuid="effe1dab-e90e-4ce7-8a2b-d6dde89c786b" style="Crosstab Data Text" x="0" y="0" width="70" height="25"/>
+								<textElement>
+									<font size="8"/>
+								</textElement>
+								<textFieldExpression><![CDATA[$V{name}]]></textFieldExpression>
+							</textField>
+						</cellContents>
+					</crosstabRowHeader>
+					<crosstabTotalRowHeader>
+						<cellContents backcolor="#BFE1FF" mode="Opaque">
+							<box>
+								<pen lineWidth="0.5" lineStyle="Solid" lineColor="#000000"/>
+							</box>
+							<staticText>
+								<reportElement uuid="c6b2ddc4-4988-4b2e-b00f-ccd26a9f0e76" x="0" y="0" width="70" height="25"/>
+								<textElement textAlignment="Center" verticalAlignment="Middle">
+									<font size="8"/>
+								</textElement>
+								<text><![CDATA[Total Concepto]]></text>
+							</staticText>
+						</cellContents>
+					</crosstabTotalRowHeader>
+				</rowGroup>
+				<columnGroup name="category" height="30" totalPosition="End">
+					<bucket class="java.lang.String">
+						<bucketExpression><![CDATA[$F{category}]]></bucketExpression>
+					</bucket>
+					<crosstabColumnHeader>
+						<cellContents backcolor="#F0F8FF" mode="Opaque">
+							<box>
+								<pen lineWidth="0.5" lineStyle="Solid" lineColor="#000000"/>
+							</box>
+							<textField isStretchWithOverflow="true">
+								<reportElement uuid="e24e1d1b-330a-4288-8f9b-3eb8435e0491" style="Crosstab Data Text" x="0" y="0" width="47" height="30"/>
+								<textElement>
+									<font size="8"/>
+								</textElement>
+								<textFieldExpression><![CDATA[$V{category}]]></textFieldExpression>
+							</textField>
+						</cellContents>
+					</crosstabColumnHeader>
+					<crosstabTotalColumnHeader>
+						<cellContents backcolor="#005FB3" mode="Opaque">
+							<box>
+								<pen lineWidth="0.5" lineStyle="Solid" lineColor="#000000"/>
+							</box>
+						</cellContents>
+					</crosstabTotalColumnHeader>
+				</columnGroup>
+				<columnGroup name="concept" height="30" totalPosition="End">
+					<bucket class="java.lang.String">
+						<bucketExpression><![CDATA[$F{concept}]]></bucketExpression>
+					</bucket>
+					<crosstabColumnHeader>
+						<cellContents backcolor="#F0F8FF" mode="Opaque">
+							<box>
+								<pen lineWidth="0.5" lineStyle="Solid" lineColor="#000000"/>
+							</box>
+							<textField isStretchWithOverflow="true">
+								<reportElement uuid="5b72158d-3c56-4f16-aa88-a913f8f95345" style="Crosstab Data Text" stretchType="RelativeToTallestObject" x="0" y="0" width="47" height="30"/>
+								<textElement>
+									<font size="8"/>
+								</textElement>
+								<textFieldExpression><![CDATA[$V{concept}]]></textFieldExpression>
+							</textField>
+						</cellContents>
+					</crosstabColumnHeader>
+					<crosstabTotalColumnHeader>
+						<cellContents backcolor="#BFE1FF" mode="Opaque">
+							<box>
+								<pen lineWidth="0.5" lineStyle="Solid" lineColor="#000000"/>
+							</box>
+						</cellContents>
+					</crosstabTotalColumnHeader>
+				</columnGroup>
+				<measure name="amountMeasure" class="java.math.BigDecimal" calculation="Sum">
+					<measureExpression><![CDATA[$F{amount}]]></measureExpression>
+				</measure>
+				<crosstabCell width="47" height="25">
+					<cellContents>
+						<box>
+							<pen lineWidth="0.5" lineStyle="Solid" lineColor="#000000"/>
+						</box>
+						<textField pattern="#,##0.00">
+							<reportElement uuid="a2905d20-0abe-45e8-936a-6087f142b0b3" style="Crosstab Data Text" x="0" y="0" width="47" height="25"/>
+							<textElement>
+								<font size="8"/>
+							</textElement>
+							<textFieldExpression><![CDATA[$V{amountMeasure}]]></textFieldExpression>
+						</textField>
+					</cellContents>
+				</crosstabCell>
+				<crosstabCell width="47" height="25" rowTotalGroup="name">
+					<cellContents backcolor="#BFE1FF" mode="Opaque">
+						<box>
+							<pen lineWidth="0.5" lineStyle="Solid" lineColor="#000000"/>
+						</box>
+						<textField pattern="#,##0.00">
+							<reportElement uuid="0b1fbbed-55c1-42d7-900b-10dbe3dc5550" style="Crosstab Data Text" x="0" y="0" width="47" height="25"/>
+							<textElement>
+								<font size="8"/>
+							</textElement>
+							<textFieldExpression><![CDATA[$V{amountMeasure}]]></textFieldExpression>
+						</textField>
+					</cellContents>
+				</crosstabCell>
+				<crosstabCell width="0" columnTotalGroup="category">
+					<cellContents backcolor="#005FB3" mode="Opaque">
+						<box>
+							<pen lineWidth="0.5" lineStyle="Solid" lineColor="#000000"/>
+						</box>
+					</cellContents>
+				</crosstabCell>
+				<crosstabCell width="0" rowTotalGroup="name" columnTotalGroup="category">
+					<cellContents backcolor="#005FB3" mode="Opaque">
+						<box>
+							<pen lineWidth="0.5" lineStyle="Solid" lineColor="#000000"/>
+						</box>
+					</cellContents>
+				</crosstabCell>
+				<crosstabCell width="0" columnTotalGroup="concept">
+					<cellContents backcolor="#BFE1FF" mode="Opaque">
+						<box>
+							<pen lineWidth="0.5" lineStyle="Solid" lineColor="#000000"/>
+						</box>
+					</cellContents>
+				</crosstabCell>
+				<crosstabCell width="0" rowTotalGroup="name" columnTotalGroup="concept">
+					<cellContents backcolor="#BFE1FF" mode="Opaque">
+						<box>
+							<pen lineWidth="0.5" lineStyle="Solid" lineColor="#000000"/>
+						</box>
+					</cellContents>
+				</crosstabCell>
+			</crosstab>
+		</band>
+	</summary>
+</jasperReport>
