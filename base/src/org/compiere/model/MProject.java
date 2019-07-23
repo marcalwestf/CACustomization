@@ -1373,8 +1373,8 @@ public class MProject extends X_C_Project
     	sql.append("from c_projectline pl ");
     	sql.append("inner join c_project p on (pl.c_project_id=p.c_project_id) ");
     	sql.append("where pl.C_Project_ID=? ");
-    	sql.append("and pl.c_projectissue_ID!=0 ");
-    	sql.append("and pl.m_inoutline_ID!=0 ");
+    	sql.append("and pl.c_projectissue_ID is not null ");
+    	sql.append("and pl.m_inoutline_ID is not null ");
     	
 		ArrayList<Object> params = new ArrayList<Object>();
 		params.add(getC_Project_ID());
@@ -1394,8 +1394,8 @@ public class MProject extends X_C_Project
     	sql.append("from c_projectline pl ");
     	sql.append("inner join c_project p on (pl.c_project_id=p.c_project_id) ");
     	sql.append("where pl.C_Project_ID=? ");
-    	sql.append("and pl.c_projectissue_ID!=0 ");
-    	sql.append("and pl.s_timeexpenseline_ID!=0 ");
+    	sql.append("and pl.c_projectissue_ID is not null ");
+    	sql.append("and pl.s_timeexpenseline_ID is not null ");
     	
 		ArrayList<Object> params = new ArrayList<Object>();
 		params.add(getC_Project_ID());
@@ -1415,9 +1415,9 @@ public class MProject extends X_C_Project
     	sql.append("from c_projectline pl ");
     	sql.append("inner join c_project p on (pl.c_project_id=p.c_project_id) ");
     	sql.append("where pl.C_Project_ID=? ");
-    	sql.append("and pl.c_projectissue_ID!=0 ");
-    	sql.append("and pl.s_timeexpenseline_ID=0 ");
-    	sql.append("and pl.m_inoutline_ID=0 ");
+    	sql.append("and pl.c_projectissue_ID is not null ");
+    	sql.append("and pl.s_timeexpenseline_ID is null ");
+    	sql.append("and pl.m_inoutline_ID is null ");
     	
 		ArrayList<Object> params = new ArrayList<Object>();
 		params.add(getC_Project_ID());
@@ -1437,8 +1437,8 @@ public class MProject extends X_C_Project
     	sql.append("select sum (pl.committedamt) ");
     	sql.append("from c_projectline pl ");
     	sql.append("inner join c_project p on (pl.c_project_id=p.c_project_id) ");
-    	sql.append("where pl.c_projectissue_ID!=0 ");
-    	sql.append("and pl.m_inoutline_ID!=0 ");
+    	sql.append("where pl.c_projectissue_ID is not null ");
+    	sql.append("and pl.m_inoutline_ID is not null ");
     	sql.append("and pl.c_project_ID in (select c_project_ID from c_project where c_project_parent_ID =?)");
     	
 		ArrayList<Object> params = new ArrayList<Object>();
@@ -1459,8 +1459,8 @@ public class MProject extends X_C_Project
     	sql.append("select sum (pl.committedamt) ");
     	sql.append("from c_projectline pl ");
     	sql.append("inner join c_project p on (pl.c_project_id=p.c_project_id) ");
-    	sql.append("where pl.c_projectissue_ID!=0 ");
-    	sql.append("and pl.s_timeexpenseline_ID!=0 ");
+    	sql.append("where pl.c_projectissue_ID is not null ");
+    	sql.append("and pl.s_timeexpenseline_ID is not null ");
     	sql.append("and pl.c_project_ID in (select c_project_ID from c_project where c_project_parent_ID =?)");
     	
 		ArrayList<Object> params = new ArrayList<Object>();
@@ -1481,9 +1481,9 @@ public class MProject extends X_C_Project
     	sql.append("select sum (pl.committedamt) ");
     	sql.append("from c_projectline pl ");
     	sql.append("inner join c_project p on (pl.c_project_id=p.c_project_id) ");
-    	sql.append("where pl.c_projectissue_ID!=0 ");
-    	sql.append("and pl.m_inoutline_ID=0 ");
-    	sql.append("and pl.s_timeexpenseline_ID=0 ");
+    	sql.append("where pl.c_projectissue_ID is not null ");
+    	sql.append("and pl.m_inoutline_ID is null ");
+    	sql.append("and pl.s_timeexpenseline_ID is null ");
     	sql.append("and pl.c_project_ID in (select c_project_ID from c_project where c_project_parent_ID =?)");
     	
 		ArrayList<Object> params = new ArrayList<Object>();
