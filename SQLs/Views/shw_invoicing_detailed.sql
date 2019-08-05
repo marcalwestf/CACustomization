@@ -1,4 +1,4 @@
-﻿-- View: adempiere.shw_invoicing_detailed
+-- View: adempiere.shw_invoicing_detailed
 
 -- DROP VIEW adempiere.shw_invoicing_detailed;
 
@@ -7,6 +7,7 @@ CREATE OR REPLACE VIEW adempiere.shw_invoicing_detailed AS
     i.ad_org_id,
     i.dateinvoiced,
     to_char(i.dateinvoiced::date::timestamp with time zone, 'dd/mm/yyyy'::text) AS dateinvoicedformatted,
+    to_char(i.dateinvoiced::date::timestamp with time zone, 'MM'::text) AS monthinvoicedformatted,
     i.issotrx,
     i.documentno,
     i.docstatus,
@@ -14,6 +15,8 @@ CREATE OR REPLACE VIEW adempiere.shw_invoicing_detailed AS
     usr.value AS salesrepvalue,
     p.name AS productname,
     p.value AS productvalue,
+    pc.name AS pcatname,
+    pc.value AS pcatvalue,
     vnd.value AS vendorvalue,
     vnd.name AS vendorname,
     il.qtyinvoiced,
@@ -53,6 +56,7 @@ CREATE OR REPLACE VIEW adempiere.shw_invoicing_detailed AS
      JOIN adempiere.c_uom_trl uomtrl ON il.c_uom_id = uomtrl.c_uom_id AND cl.ad_language::text = uomtrl.ad_language::text
      JOIN adempiere.c_tax_trl taxtrl ON il.c_tax_id = taxtrl.c_tax_id AND cl.ad_language::text = taxtrl.ad_language::text
      JOIN adempiere.m_product p ON il.m_product_id = p.m_product_id
+     JOIN adempiere.m_product_category pc ON p.m_product_category_id = pc.m_product_category_id
      LEFT JOIN adempiere.m_product_po ppo ON p.m_product_id = ppo.m_product_id AND ppo.iscurrentvendor = 'Y'::bpchar
      JOIN adempiere.c_bpartner vnd ON ppo.c_bpartner_id = vnd.c_bpartner_id
      JOIN adempiere.ad_user usr ON i.salesrep_id = usr.ad_user_id
