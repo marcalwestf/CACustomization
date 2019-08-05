@@ -44,6 +44,7 @@ CREATE MATERIALIZED VIEW adempiere.shw_invoicing_detailed_history AS
     i.c_bpartner_id AS customer_id,
     round(il.linenetamt, 2) AS linenetamt,
     adempiere.trunc(i.dateinvoiced::timestamp with time zone, 'MONTH'::character varying) AS dateinvoicedmonth,
+    adempiere.trunc(i.dateinvoiced::timestamp with time zone, 'YEAR'::character varying) AS dateinvoicedyear,
     per.c_period_id,
     i.salesrep_id,
     p.m_product_category_id,
