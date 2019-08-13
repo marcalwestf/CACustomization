@@ -1369,12 +1369,11 @@ public class MProject extends X_C_Project
 	 */
     private BigDecimal calcCostIssueProduct() {		
     	StringBuffer sql = new StringBuffer();
-    	sql.append("select sum (pl.committedamt) ");
-    	sql.append("from c_projectline pl ");
-    	sql.append("inner join c_project p on (pl.c_project_id=p.c_project_id) ");
-    	sql.append("where pl.C_Project_ID=? ");
-    	sql.append("and pl.c_projectissue_ID is not null ");
-    	sql.append("and pl.m_inoutline_ID is not null ");
+    	sql.append("SELECT coalesce(sum(cd.CostAmt + cd.CostAmtLL + cd.CostAdjustment + cd.CostAdjustmentLL),0) ");
+    	sql.append(" FROM C_ProjectIssue pi ");
+    	sql.append(" INNER JOIN M_CostDetail cd on pi.c_ProjectIssue_ID=cd.c_ProjectIssue_ID ");
+    	sql.append(" WHERE pi.C_Project_ID=? ");
+    	sql.append("and pi.M_InOutLine_ID is not null ");
     	
 		ArrayList<Object> params = new ArrayList<Object>();
 		params.add(getC_Project_ID());
@@ -1411,13 +1410,12 @@ public class MProject extends X_C_Project
 	 */
     private BigDecimal calcCostIssueInventory() {		
     	StringBuffer sql = new StringBuffer();
-    	sql.append("select sum (pl.committedamt) ");
-    	sql.append("from c_projectline pl ");
-    	sql.append("inner join c_project p on (pl.c_project_id=p.c_project_id) ");
-    	sql.append("where pl.C_Project_ID=? ");
-    	sql.append("and pl.c_projectissue_ID is not null ");
-    	sql.append("and pl.s_timeexpenseline_ID is null ");
-    	sql.append("and pl.m_inoutline_ID is null ");
+    	sql.append("SELECT coalesce(sum(cd.CostAmt + cd.CostAmtLL + cd.CostAdjustment + cd.CostAdjustmentLL),0) ");
+    	sql.append(" FROM C_ProjectIssue pi ");
+    	sql.append(" INNER JOIN M_CostDetail cd on pi.c_ProjectIssue_ID=cd.c_ProjectIssue_ID ");
+    	sql.append(" WHERE pi.C_Project_ID=? ");
+    	sql.append("and pi.M_InOutLine_ID is  null ");
+    	sql.append("and pi.s_timeexpenseline_ID is null ");
     	
 		ArrayList<Object> params = new ArrayList<Object>();
 		params.add(getC_Project_ID());
