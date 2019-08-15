@@ -25,7 +25,7 @@ BEGIN
 	INNER JOIN C_Invoice crn      ON (crnl.C_Invoice_ID=crn.C_Invoice_ID AND crn.docstatus='CO')
 	WHERE ivl.C_Invoiceline_ID=p_invoiceline_id;;
 	
-	RETURN v_returnedlinenetamtreal;
+	RETURN coalesce(v_returnedlinenetamtreal, 0);
 END;
 
 $BODY$

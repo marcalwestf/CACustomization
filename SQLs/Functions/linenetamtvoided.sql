@@ -27,7 +27,7 @@ BEGIN
 	END IF;
 
 	v_reversallinenetamtreal = linenetamtrealinvoiceline(p_invoicereversalline_id);
-	RETURN v_reversallinenetamtreal;
+	RETURN  coalesce(v_reversallinenetamtreal, 0);
 END;
 
 $BODY$
