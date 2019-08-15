@@ -650,31 +650,33 @@ public class MProject extends X_C_Project
 		set_ValueOfColumn("ProjectOfferedRevenuePlanned", result);
 		
 		// Update costs
-		result = calcCostOrRevenuePlanned(false); 			// Planned costs from Purchase Orders
+		// Parameters:                     Project         isSOtrx  isParentProject
+		result = calcCostOrRevenuePlanned(getC_Project_ID(), false, false);      // Planned costs from Purchase Orders this project
 		set_ValueOfColumn("CostPlanned", result);
-		result = calcCostOrRevenueActual(false); 			// Actual costs from Purchase Invoices
+		result = calcCostOrRevenueActual(getC_Project_ID(), false, false); 		 // Actual costs from Purchase Invoices
 		set_ValueOfColumn("CostAmt", result);
-		result = calcNotInvoicedCostOrRevenue(false); 		// Planned but not yet invoiced costs
+		result = calcNotInvoicedCostOrRevenue(getC_Project_ID(), false, false);  // Planned but not yet invoiced costs
 		set_ValueOfColumn("CostNotInvoiced", result);
-		result = calcCostOrRevenueExtrapolated(false); 		// Actual costs + Planned but not yet invoiced costs
+		result = calcCostOrRevenueExtrapolated(getC_Project_ID(), false, false); // Actual costs + Planned but not yet invoiced costs
 		set_ValueOfColumn("CostExtrapolated", result);
 
 		// Update revenues
-		result = calcCostOrRevenuePlanned(true); 			// Planned revenue from Sales Orders
+		result = calcCostOrRevenuePlanned(getC_Project_ID(), true, false);     // Planned revenue from Sales Orders this project
 		set_ValueOfColumn("RevenuePlanned", result);
-		result = calcCostOrRevenueActual(true); 			// Actual revenue from Sales Invoices
+		result = calcCostOrRevenueActual(getC_Project_ID(), true, false); 	   // Actual revenue from Sales Invoices
 		set_ValueOfColumn("RevenueAmt", result);
-		result = calcNotInvoicedCostOrRevenue(true); 		// Planned but not yet invoiced revenue
+		result = calcNotInvoicedCostOrRevenue(getC_Project_ID(), true, false); // Planned but not yet invoiced revenue
 		set_ValueOfColumn("RevenueNotInvoiced", result);
-		BigDecimal revenueExtrapolated = calcCostOrRevenueExtrapolated(true);  // Actual revenue + Planned but not yet invoiced revenue
+		BigDecimal revenueExtrapolated =  Env.ZERO; // To be used later in the program
+		revenueExtrapolated = calcCostOrRevenueExtrapolated(getC_Project_ID(), true, false);  // Actual revenue + Planned but not yet invoiced revenue
 		set_ValueOfColumn("RevenueExtrapolated", revenueExtrapolated);
 		
 		// Update Issue Costs
-		BigDecimal costIssueProduct = calcCostIssueProduct();		// Costs of Product Issues
+		BigDecimal costIssueProduct = calcCostIssueProduct(getC_Project_ID(), false);		// Costs of Product Issues
 		set_ValueOfColumn("CostIssueProduct", costIssueProduct);
-		BigDecimal costIssueResource = calcCostIssueResource();		// Costs of Resource Issues
+		BigDecimal costIssueResource = calcCostIssueResource(getC_Project_ID(), false);		// Costs of Resource Issues
 		set_ValueOfColumn("CostIssueResource", costIssueResource);
-		BigDecimal costIssueInventory = calcCostIssueInventory();   // Costs of Inventory Issues
+		BigDecimal costIssueInventory = calcCostIssueInventory(getC_Project_ID(), false);   // Costs of Inventory Issues
 		set_ValueOfColumn("CostIssueInventory", costIssueInventory);
 		set_ValueOfColumn("CostIssueSum", costIssueProduct.add(costIssueResource).
 				add(costIssueInventory));  // Issue sum = Costs of Product Issue + Costs of Resource Issue + Costs of Inventory Issues
@@ -713,31 +715,31 @@ public class MProject extends X_C_Project
 
 		if (isSummary()) { // Project is a parent project
 			// Update costs of direct children (not recursively all children!)
-			BigDecimal costPlannedLL = calcCostOrRevenuePlannedSons(getC_Project_ID(), false);	  // Planned costs from Purchase Orders of children
+			BigDecimal costPlannedLL = calcCostOrRevenuePlannedSons(getC_Project_ID(), false, true);	       // Planned costs from Purchase Orders of children
 			set_Value("CostPlannedLL", costPlannedLL);
-			BigDecimal costAmtLL = calcCostOrRevenueActualSons(getC_Project_ID(), false);		  // Actual costs from Purchase Invoices of children
+			BigDecimal costAmtLL = calcCostOrRevenueActualSons(getC_Project_ID(), false, true);		           // Actual costs from Purchase Invoices of children
 			set_Value("CostAmtLL", costAmtLL);
-			BigDecimal costNotInvoicedLL = shwNotInvoicedCostOrRevenueSons(getC_Project_ID(), false);   // Planned but not yet invoiced costs of children
+			BigDecimal costNotInvoicedLL = calcNotInvoicedCostOrRevenueSons(getC_Project_ID(), false, true);   // Planned but not yet invoiced costs of children
 			set_Value("CostNotInvoicedLL", costNotInvoicedLL);	
-			BigDecimal costExtrapolatedLL = calcCostOrRevenueExtrapolatedSons(getC_Project_ID(), false); // Actual costs + Planned but not yet invoiced costs of children
+			BigDecimal costExtrapolatedLL = calcCostOrRevenueExtrapolatedSons(getC_Project_ID(), false, true); // Actual costs + Planned but not yet invoiced costs of children
 			set_Value("CostExtrapolatedLL", costExtrapolatedLL);			
 			
 			// update revenues of children
-			BigDecimal revenuePlannedLL = calcCostOrRevenuePlannedSons(getC_Project_ID(), true);		  // Planned revenue from Sales Orders of children
+			BigDecimal revenuePlannedLL = calcCostOrRevenuePlannedSons(getC_Project_ID(), true, true);	         // Planned revenue from Sales Orders of children
 			set_ValueOfColumn("RevenuePlannedLL", revenuePlannedLL);
-			BigDecimal revenueAmtLL = calcCostOrRevenueActualSons(getC_Project_ID(), true);		  // Actual revenue from Sales Invoices of children
+			BigDecimal revenueAmtLL = calcCostOrRevenueActualSons(getC_Project_ID(), true, true);		         // Actual revenue from Sales Invoices of children
 			set_ValueOfColumn("RevenueAmtLL", revenueAmtLL);
-			BigDecimal revenueNotInvoicedLL = shwNotInvoicedCostOrRevenueSons(getC_Project_ID(), true);    // Planned but not yet invoiced revenue of children
+			BigDecimal revenueNotInvoicedLL = calcNotInvoicedCostOrRevenueSons(getC_Project_ID(), true, true);   // Planned but not yet invoiced revenue of children
 			set_ValueOfColumn("RevenueNotInvoicedLL", revenueNotInvoicedLL);	
-			BigDecimal revenueExtrapolatedLL = calcCostOrRevenueExtrapolatedSons(getC_Project_ID(), true);  // Actual revenue + Planned but not yet invoiced revenue of children
+			BigDecimal revenueExtrapolatedLL = calcCostOrRevenueExtrapolatedSons(getC_Project_ID(), true, true); // Actual revenue + Planned but not yet invoiced revenue of children
 			set_ValueOfColumn("RevenueExtrapolatedLL", revenueExtrapolatedLL);				
 			
 			// Update Issue Costs of children
-			BigDecimal costIssueProductLL = calcCostIssueProductSons(getC_Project_ID());		  // Costs of Product Issues of children
+			BigDecimal costIssueProductLL = calcCostIssueProductSons(getC_Project_ID(), true);      // Costs of Product Issues of children
 			set_ValueOfColumn("CostIssueProductLL", costIssueProductLL);
-			BigDecimal costIssueResourceLL = calcCostIssueResourceSons(getC_Project_ID());		  // Costs of Resource Issues of children
+			BigDecimal costIssueResourceLL = calcCostIssueResourceSons(getC_Project_ID(), true);    // Costs of Resource Issues of children
 			set_ValueOfColumn("CostIssueResourceLL", costIssueResourceLL);
-			BigDecimal costIssueInventoryLL = calcCostIssueInventorySons(getC_Project_ID());		  // Costs of Inventory Issues of children
+			BigDecimal costIssueInventoryLL = calcCostIssueInventorySons(getC_Project_ID(), true);  // Costs of Inventory Issues of children
 			set_ValueOfColumn("CostIssueInventoryLL", costIssueInventoryLL);
 			BigDecimal costIssueSumLL  = costIssueProductLL.  // Issue sum LL = Costs of Product Issue LL + Costs of Resource Issue LL+ Costs of Inventory Issue LL
 					add(costIssueResourceLL).add(costIssueInventoryLL); 
@@ -755,8 +757,8 @@ public class MProject extends X_C_Project
 
 			saveEx();  // TODO: delete line
 
-	    	BigDecimal costActualFather = (BigDecimal)get_Value("CostAmt");
-	    	BigDecimal costPlannedFather = (BigDecimal)get_Value("CostPlanned");
+	    	BigDecimal costActualFather       = (BigDecimal)get_Value("CostAmt");
+	    	BigDecimal costPlannedFather      = (BigDecimal)get_Value("CostPlanned");
 	    	BigDecimal costExtrapolatedFather = (BigDecimal)get_Value("CostExtrapolated");	    	
 	    	
 	    	// BigDecimal revenuePlannedSons = (BigDecimal)get_Value("RevenuePlannedLL");
@@ -770,7 +772,7 @@ public class MProject extends X_C_Project
 			.list();
 			for (MProject sonProject: projectsOfFather)	{
 				//BigDecimal revenuePlannedSon = (BigDecimal)sonProject.get_Value("RevenuePlanned");
-				BigDecimal revenueExtrapolatedSon= (BigDecimal)sonProject.get_Value("RevenueExtrapolated");
+				BigDecimal revenueExtrapolatedSon = (BigDecimal)sonProject.get_Value("RevenueExtrapolated");
 				BigDecimal weight = (BigDecimal)sonProject.get_Value("Weight");
 				BigDecimal volume = (BigDecimal)sonProject.get_Value("volume");
 				BigDecimal shareRevenue = Env.ZERO;
@@ -822,22 +824,22 @@ public class MProject extends X_C_Project
 		if (C_Project_Parent_ID!= 0)	{	
 			// Project is child: update direct parent project
 	    	MProject fatherProject = new MProject(getCtx(), C_Project_Parent_ID, get_TrxName());
-			result = calcCostOrRevenuePlannedSons(C_Project_Parent_ID, false);      // Planned costs from Purchase Orders of all children of parent project
+			result = calcCostOrRevenuePlannedSons(C_Project_Parent_ID, false, true);      // Planned costs from Purchase Orders of all children of parent project
 			fatherProject.set_Value("CostPlannedLL", result);
-			result = calcCostOrRevenueActualSons(C_Project_Parent_ID, false);       // Actual costs from Purchase Invoices of all children of parent project
+			result = calcCostOrRevenueActualSons(C_Project_Parent_ID, false, true);       // Actual costs from Purchase Invoices of all children of parent project
 			fatherProject.set_Value("CostAmtLL", result);
-			result = calcCostOrRevenueExtrapolatedSons(C_Project_Parent_ID, false); // Sum of actual costs and planned (not yet invoiced) costs of all children of parent project
+			result = calcCostOrRevenueExtrapolatedSons(C_Project_Parent_ID, false, true); // Sum of actual costs and planned (not yet invoiced) costs of all children of parent project
 			fatherProject.set_Value("CostExtrapolatedLL", result);		
 			
 			fatherProject.saveEx();
 
-	    	BigDecimal costActualFather = (BigDecimal)fatherProject.get_Value("CostAmt");
-	    	BigDecimal costPlannedFather = (BigDecimal)fatherProject.get_Value("CostPlanned");
+	    	BigDecimal costActualFather       = (BigDecimal)fatherProject.get_Value("CostAmt");
+	    	BigDecimal costPlannedFather      = (BigDecimal)fatherProject.get_Value("CostPlanned");
 	    	BigDecimal costExtrapolatedFather = (BigDecimal)fatherProject.get_Value("CostExtrapolated");
 
-	    	BigDecimal revenueAmtSons = calcCostOrRevenueActualSons(C_Project_Parent_ID, true);	
-	    	BigDecimal revenuePlannedSons = calcCostOrRevenuePlannedSons(C_Project_Parent_ID, true);
-	    	BigDecimal revenueAllExtrapolated = calcCostOrRevenueExtrapolatedSons(C_Project_Parent_ID, true);	
+	    	BigDecimal revenueAmtSons         = calcCostOrRevenueActualSons(C_Project_Parent_ID, true, true);	
+	    	BigDecimal revenuePlannedSons     = calcCostOrRevenuePlannedSons(C_Project_Parent_ID, true, true);
+	    	BigDecimal revenueAllExtrapolated = calcCostOrRevenueExtrapolatedSons(C_Project_Parent_ID, true, true);	
 	    	
 	    	BigDecimal weightFather = (BigDecimal)fatherProject.get_Value("Weight");
 	    	BigDecimal volumeFather = (BigDecimal)fatherProject.get_Value("Volume");
@@ -855,8 +857,8 @@ public class MProject extends X_C_Project
 				if (volume == null)
 					volume = Env.ZERO;
 				BigDecimal shareRevenue = Env.ZERO;
-				BigDecimal shareWeight = Env.ZERO;
-				BigDecimal shareVolume = Env.ZERO;
+				BigDecimal shareWeight  = Env.ZERO;
+				BigDecimal shareVolume  = Env.ZERO;
 				if (revenueExtrapolatedSon!=null && revenueAllExtrapolated.longValue()!= 0)
 					shareRevenue = revenueExtrapolatedSon.divide(revenueAllExtrapolated, 5, BigDecimal.ROUND_HALF_DOWN);
 				if (weight!=null && weightFather != null && weightFather.longValue()!=0)
@@ -877,7 +879,7 @@ public class MProject extends X_C_Project
 			grossMarginTotal = Env.ZERO;
 		set_ValueOfColumn("GrossMarginTotal", grossMarginTotal);
 		
-		Date date= new Date();
+		Date date = new Date();
 		long time = date.getTime();
 		Timestamp timestamp = new Timestamp(time);
 		set_ValueOfColumn("DateLastRun", timestamp);
@@ -888,89 +890,146 @@ public class MProject extends X_C_Project
 
 	/**
 	 * Calculates this Project's Actual Costs or Revenue based on Invoices
-	 * @param isSOTrx (boolean) true (Revenue) or false (Cost) 
+	 * @param c_Project_ID Project ID
+	 * @param isSOTrx  (boolean) true (Revenue) or false (Cost)
+	 * @param isParentProject  (boolean) true (Include all child Projects) or false (Only this Project)
 	 *	@return Amount of Cost or Revenue, depending on parameter 
 	 */
-    private BigDecimal calcCostOrRevenueActual(boolean isSOTrx) {
+    private BigDecimal calcCostOrRevenueActual(int c_Project_ID, boolean isSOTrx, boolean isParentProject) {
     	String expresion = "LineNetAmtRealInvoiceLine(c_invoiceline_ID)";
     	StringBuffer whereClause = new StringBuffer();
     	whereClause.append("c_invoice_ID IN (SELECT c_invoice_ID FROM c_invoice WHERE docstatus IN ('CO','CL') ");
     	whereClause.append(" AND issotrx = ");
-    	whereClause.append(isSOTrx==true?  " 'Y')" : " 'N')");
-    	whereClause.append( " and c_project_ID in (?)");
+    	whereClause.append(isSOTrx==true?  " 'Y') " : " 'N') ");
+
+    	if(isParentProject)
+    		whereClause.append( "AND c_project_ID IN (SELECT c_project_ID FROM c_project WHERE c_project_parent_ID =?) ");
+    	else
+    		whereClause.append("AND c_project_ID = ? ");
+    	
     	BigDecimal result = Env.ZERO;
     	result = new Query(getCtx(), MInvoiceLine.Table_Name, whereClause.toString(), get_TrxName())
-    		.setParameters(getC_Project_ID())
+    		.setParameters(c_Project_ID)
     		.aggregate(expresion, Query.AGGREGATE_SUM);
     	return result==null?Env.ZERO:result;
     }
 
 	/**
 	 * Calculates this Project's Planned Costs or Revenue based on Orders
+	 * Special treatment for closed orders
+	 * @param c_Project_ID Project ID
 	 * @param isSOTrx  (boolean) true (Revenue) or false (Cost)
+	 * @param isParentProject  (boolean) true (Include all child Projects) or false (Only this Project)
 	 *	@return Amount of Cost or Revenue, depending on parameter 
 	 */
-    private BigDecimal calcCostOrRevenuePlanned(boolean isSOTrx) {
-    	String expresion = "linenetamt - taxAmtReal(c_Orderline_ID)";
-    	StringBuffer whereClause = new StringBuffer();
-    	whereClause.append("c_order_ID in (select c_order_ID from c_order where docstatus in ('CO','CL','IP') ");
-    	whereClause.append(" AND issotrx = ");
-    	whereClause.append(isSOTrx==true?  " 'Y')" : " 'N')");
-    	whereClause.append( " and c_project_ID in (?)");
-    	BigDecimal result = Env.ZERO;
-    	result = new Query(getCtx(), MOrderLine.Table_Name, whereClause.toString(), get_TrxName())
-    		.setParameters(getC_Project_ID())
-    		.aggregate(expresion, Query.AGGREGATE_SUM);
+    private BigDecimal calcCostOrRevenuePlanned(int c_Project_ID, boolean isSOTrx, boolean isParentProject) {
+    	StringBuffer sql = new StringBuffer();
+    	sql.append("SELECT COALESCE (SUM( ");
+    	sql.append("CASE ");
+    	sql.append("     WHEN pl.istaxincluded = 'Y' ");
+    	sql.append("     THEN ");
+    	sql.append("         CASE ");
+    	sql.append("         WHEN o.docstatus in ('CL') ");
+    	sql.append("         THEN ((ol.qtyinvoiced * ol.priceactual)- (ol.qtyinvoiced * ol.priceactual)/(1+(t.rate/100)))  ");
+    	sql.append("         ELSE (ol.linenetamt- ol.linenetamt/(1+(t.rate/100))) ");
+    	sql.append("         END ");
+    	sql.append("     ELSE ");
+    	sql.append("         CASE ");
+    	sql.append("         WHEN o.docstatus IN ('CL') ");
+    	sql.append("         THEN (ol.qtyinvoiced * ol.priceactual) ");
+    	sql.append("         ELSE (ol.linenetamt) ");
+    	sql.append("         END ");
+    	sql.append("     END ");
+    	sql.append("),0) ");
+    	sql.append("FROM C_OrderLine ol ");
+    	sql.append("INNER JOIN c_order o ON ol.c_order_ID = o.c_order_ID ");
+    	sql.append("INNER JOIN m_pricelist pl ON o.m_pricelist_ID = pl.m_pricelist_ID ");
+    	sql.append("INNER JOIN c_tax t ON ol.c_tax_ID = t.c_tax_ID ");
+    	sql.append("WHERE ");
+    	sql.append("o.c_order_ID IN  (select c_order_ID from c_order where docstatus in ('CO','CL','IP')   AND issotrx =  ? ) ");
+
+    	if(isParentProject)
+    		sql.append( "AND o.c_project_ID IN (SELECT c_project_ID FROM c_project WHERE c_project_parent_ID =?) ");
+    	else
+    		sql.append("AND o.c_project_ID = ? ");
+
+    	ArrayList<Object> params = new ArrayList<Object>();
+    	params.add(isSOTrx);
+    	params.add(c_Project_ID);
+
+    	BigDecimal result = DB.getSQLValueBDEx(null, sql.toString(), params);
     	return result==null?Env.ZERO:result;
     }
 
 	/**
 	 * Calculates this Project's ordered, but not invoiced Costs or Revenue based on Orders
+	 * Special treatment for closed orders
+	 * @param c_Project_ID Project ID
 	 * @param isSOTrx  (boolean) true (Revenue) or false (Cost)
+	 * @param isParentProject  (boolean) true (Include all child Projects) or false (Only this Project)
 	 *	@return Amount of Cost or Revenue, depending on parameter 
 	 */
-   private BigDecimal calcNotInvoicedCostOrRevenue(boolean isSOTrx) {
-    	String expresion = "((qtyordered-qtyinvoiced)*Priceactual) - (taxamt_Notinvoiced(c_Orderline_ID))";
-    	StringBuffer whereClause = new StringBuffer();
-    	whereClause.append("c_order_ID in (select c_order_ID from c_order where docstatus in ('CO','CL') ");
-    	whereClause.append(" AND issotrx = ");
-    	whereClause.append(isSOTrx==true?  " 'Y')" : " 'N')");
-    	whereClause.append( " and c_project_ID in (?)");
-    	BigDecimal amtNotInvoiced = Env.ZERO;
-    	amtNotInvoiced = new Query(getCtx(), MOrderLine.Table_Name, whereClause.toString(), get_TrxName())
-    		.setParameters(getC_Project_ID())
-    		.aggregate(expresion, Query.AGGREGATE_SUM);
-    	return amtNotInvoiced==null?Env.ZERO:amtNotInvoiced;
+   private BigDecimal calcNotInvoicedCostOrRevenue(int c_Project_ID, boolean isSOTrx, boolean isParentProject) {
+   	StringBuffer sql = new StringBuffer();
+   	sql.append("SELECT COALESCE (SUM( ");
+   	sql.append("CASE ");
+   	sql.append("     WHEN pl.istaxincluded = 'Y' ");
+   	sql.append("     THEN ");
+   	sql.append("         CASE ");
+   	sql.append("         WHEN o.docstatus in ('CL') ");
+   	sql.append("         THEN 0  ");
+   	sql.append("         ELSE ((ol.qtyordered-ol.qtyinvoiced)*ol.Priceactual) - (taxamt_Notinvoiced(ol.c_Orderline_ID)) ");
+   	sql.append("         END ");
+   	sql.append("     ELSE ");
+   	sql.append("         CASE ");
+   	sql.append("         WHEN o.docstatus IN ('CL') ");
+   	sql.append("         THEN 0 ");
+   	sql.append("         ELSE ((ol.qtyordered-ol.qtyinvoiced)*ol.Priceactual) ");
+   	sql.append("         END ");
+   	sql.append("     END ");
+   	sql.append("),0) ");
+   	sql.append("FROM C_OrderLine ol ");
+   	sql.append("INNER JOIN c_order o ON ol.c_order_ID = o.c_order_ID ");
+   	sql.append("INNER JOIN m_pricelist pl ON o.m_pricelist_ID = pl.m_pricelist_ID ");
+   	sql.append("INNER JOIN c_tax t ON ol.c_tax_ID = t.c_tax_ID ");
+   	sql.append("WHERE ");
+	sql.append("o.c_order_ID IN  (select c_order_ID from c_order where docstatus in ('CO','CL','IP')   AND issotrx =  ? ) ");
+
+	if(isParentProject)
+		sql.append( "AND o.c_project_ID IN (SELECT c_project_ID FROM c_project WHERE c_project_parent_ID =?) ");
+	else
+		sql.append("AND o.c_project_ID = ? ");
+	
+	ArrayList<Object> params = new ArrayList<Object>();
+	params.add(isSOTrx);
+	params.add(c_Project_ID);
+		
+   	BigDecimal result = DB.getSQLValueBDEx(null, sql.toString(), params);
+   	return result==null?Env.ZERO:result;
     }
     
    /**
     * Calculates this Project's ordered, but not invoiced Costs or Revenue based on Order
 	 *  added to this Project's Actual Costs or Revenue based on Invoices
+	 * @param c_Project_ID Project ID
 	 * @param isSOTrx  (boolean) true (Revenue) or false (Cost)
+	 * @param isParentProject  (boolean) true (Include all child Projects) or false (Only this Project)
 	 *	@return Amount of Cost or Revenue, depending on parameter 
 	 */
-   private BigDecimal calcCostOrRevenueExtrapolated(boolean isSOTrx) {
-    	BigDecimal result = calcNotInvoicedCostOrRevenue(isSOTrx).add(calcCostOrRevenueActual(isSOTrx));
+   private BigDecimal calcCostOrRevenueExtrapolated(int c_Project_ID, boolean isSOTrx, boolean isParentProject) {
+    	BigDecimal result = calcNotInvoicedCostOrRevenue(c_Project_ID, isSOTrx, isParentProject).add(calcCostOrRevenueActual(c_Project_ID, isSOTrx, isParentProject));
     	return result==null?Env.ZERO:result;
     }
 
 	/**
 	 * Calculates Actual Costs or Revenue of a Project's direct children based on Invoices
-	 * @param c_project_parent_ID Project ID
+	 * @param c_Project_Parent_ID Project ID
 	 * @param isSOTrx boolean true (Revenue) or false (Cost)
+	 * @param isParentProject  (boolean) true (Include all child Projects) or false (Only this Project)
 	 *	@return Amount of Cost or Revenue, depending on parameter 
 	 */
-    private BigDecimal calcCostOrRevenueActualSons(int c_project_parent_ID, boolean isSOTrx) {
-    	String expresion = "LineNetAmtRealInvoiceLine(c_invoiceline_ID)";
-    	StringBuffer whereClause = new StringBuffer();
-    	whereClause.append("c_invoice_ID in (select c_invoice_ID from c_invoice where docstatus in ('CO','CL') ");
-    	whereClause.append(" AND issotrx = ");
-    	whereClause.append(isSOTrx==true?  " 'Y')" : " 'N')");
-    	    	whereClause.append( " and c_project_ID in (select c_project_ID from c_project where c_project_parent_ID =?)");
-    	BigDecimal result = Env.ZERO;
-    	result = new Query(getCtx(), MInvoiceLine.Table_Name, whereClause.toString(), get_TrxName())
-    		.setParameters(c_project_parent_ID)
-    		.aggregate(expresion, Query.AGGREGATE_SUM);
+    private BigDecimal calcCostOrRevenueActualSons(int c_Project_Parent_ID, boolean isSOTrx, boolean isParentProject) {
+    	BigDecimal result = calcCostOrRevenueActual(c_Project_Parent_ID, isSOTrx, isParentProject);
     	return result==null?Env.ZERO:result;
     }       
 
@@ -979,57 +1038,42 @@ public class MProject extends X_C_Project
 	 * It considers low level amounts.
 	 * @param c_project_parent_ID Project ID
 	 * @param isSOTrx boolean true (Revenue) or false (Cost)
+	 * @param isParentProject  (boolean) true (Include all child Projects) or false (Only this Project)
 	 *	@return Amount of Cost or Revenue, depending on parameter 
 	 */
-    private BigDecimal calcCostOrRevenuePlannedSons(int c_Project_Parent_ID, boolean isSOTrx) {
-    	String expresion = "linenetamt - taxAmtReal(c_Orderline_ID)";
-    	StringBuffer whereClause = new StringBuffer();
-    	whereClause.append("c_order_ID in (select c_order_ID from c_order where docstatus in ('CO','CL','IP') ");
-    	whereClause.append(" AND issotrx = ");
-    	whereClause.append(isSOTrx==true?  " 'Y')" : " 'N')");
-    	    	whereClause.append( " and c_project_ID in (select c_project_ID from c_project where c_project_parent_ID =?)");
-    	BigDecimal costs = Env.ZERO;
-    	costs = new Query(getCtx(), MOrderLine.Table_Name, whereClause.toString(), get_TrxName())
-    		.setParameters(c_Project_Parent_ID)
-    		.aggregate(expresion, Query.AGGREGATE_SUM);
-    	return costs==null?Env.ZERO:costs;
+    private BigDecimal calcCostOrRevenuePlannedSons(int c_Project_Parent_ID, boolean isSOTrx, boolean isParentProject) {
+    	BigDecimal result = calcCostOrRevenuePlanned(c_Project_Parent_ID, isSOTrx, isParentProject);
+    	return result==null?Env.ZERO:result;
     }
     
     /**
 	 * Calculates not Invoiced Costs or Revenue of a Project's direct children based on Orders
-	 * @param c_project_parent_ID Project ID
+	 * @param c_Project_Parent_ID Project ID
 	 * @param isSOTrx boolean true (Revenue) or false (Cost)
+	 * @param isParentProject  (boolean) true (Include all child Projects) or false (Only this Project)
 	 *	@return Amount of Cost or Revenue, depending on parameter 
 	 */
-     private BigDecimal shwNotInvoicedCostOrRevenueSons(int c_Project_Parent_ID, boolean isSOTrx) {
-    	String expresion = "((qtyordered-qtyinvoiced)*Priceactual) - (taxamt_Notinvoiced(c_Orderline_ID))";
-    	StringBuffer whereClause = new StringBuffer();
-    	whereClause.append("c_order_ID in (select c_order_ID from c_order where docstatus in ('CO','CL') ");
-    	whereClause.append(" AND issotrx = ");
-    	whereClause.append(isSOTrx==true?  " 'Y')" : " 'N')");
-    	whereClause.append( "  and c_project_ID in (select c_project_ID from c_project where c_project_parent_ID =?)");
-    	BigDecimal amtNotInvoiced = Env.ZERO;
-    	amtNotInvoiced = new Query(getCtx(), MOrderLine.Table_Name, whereClause.toString(), get_TrxName())
-    		.setParameters(c_Project_Parent_ID)
-    		.aggregate(expresion, Query.AGGREGATE_SUM);
-    	return amtNotInvoiced==null?Env.ZERO:amtNotInvoiced;    
+     private BigDecimal calcNotInvoicedCostOrRevenueSons(int c_Project_Parent_ID, boolean isSOTrx, boolean isParentProject) {
+     	BigDecimal result = calcNotInvoicedCostOrRevenue(c_Project_Parent_ID, isSOTrx, isParentProject);
+     	return result==null?Env.ZERO:result;  
     }
      
      /**
       * Calculates not Invoiced Costs or Revenue of a Project's direct children based on Orders
   	 *  added to  Actual Costs or Revenue of a Project's children based on Invoices
-	 * @param c_project_parent_ID Project ID
+	 * @param c_Project_Parent_ID Project ID
   	 * @param isSOTrx  (boolean) true (Revenue) or false (Cost)
+	 * @param isParentProject  (boolean) true (Include all child Projects) or false (Only this Project)
   	 *	@return Amount of Cost or Revenue, depending on parameter 
   	 */
-     private BigDecimal calcCostOrRevenueExtrapolatedSons(int c_project_Parent_ID, boolean isSOTrx) {
-    	BigDecimal result = shwNotInvoicedCostOrRevenueSons(c_project_Parent_ID, isSOTrx).add(calcCostOrRevenueActualSons(c_project_Parent_ID, isSOTrx));
+     private BigDecimal calcCostOrRevenueExtrapolatedSons(int c_Project_Parent_ID, boolean isSOTrx, boolean isParentProject) {
+    	BigDecimal result = calcNotInvoicedCostOrRevenueSons(c_Project_Parent_ID, isSOTrx, isParentProject).add(calcCostOrRevenueActualSons(c_Project_Parent_ID, isSOTrx, isParentProject));
     	return result==null?Env.ZERO:result;
     }    
     
     private Boolean calcCostPlannedInherited(MProject son, BigDecimal costPlannedFather
     		, BigDecimal costActualFather
-    		,BigDecimal costExtrapolatedFather
+    		, BigDecimal costExtrapolatedFather
     		, BigDecimal shareVolume
     		, BigDecimal shareWeight
     		, BigDecimal shareRevenue)
@@ -1083,8 +1127,7 @@ public class MProject extends X_C_Project
     		return "";
     		
         for (MAcctSchema as:MAcctSchema.getClientAcctSchema(getCtx(), getAD_Client_ID()))
-    		{	
-
+    		{
     			ArrayList<Object> params = new ArrayList<Object>();
     			params.add(get_ValueAsInt("C_Project_Parent_ID"));
     			params.add(as.getC_AcctSchema_ID());
@@ -1098,7 +1141,6 @@ public class MProject extends X_C_Project
     			distributeOrders(as);
     			distributeInvoices(as);
     		}
-        
     	return "";
     }
     
@@ -1121,7 +1163,7 @@ public class MProject extends X_C_Project
     	BigDecimal weight_father = (BigDecimal)father.get_Value("Weight");
     	BigDecimal Volume_father = (BigDecimal)father.get_Value("Volume");
     	BigDecimal share = Env.ONEHUNDRED;
-    	BigDecimal revenueAll = calcCostOrRevenueActualSons(get_ValueAsInt("C_Project_ID"), true);	
+    	BigDecimal revenueAll = calcCostOrRevenueActualSons(get_ValueAsInt("C_Project_ID"), true, true);	
     	
     		for (MProject projectson: projectsOfFather)
     		{
@@ -1131,9 +1173,9 @@ public class MProject extends X_C_Project
     				BigDecimal volume = (BigDecimal)projectson.get_Value("volume");
     				if (weight.compareTo(Env.ZERO) == 0 && volume.compareTo(Env.ZERO)==0
     						&& revenueAll.compareTo(Env.ZERO)!= 0 
-    						&& projectson.calcCostOrRevenueActual(true).compareTo(Env.ZERO)!=0)
+    						&& projectson.calcCostOrRevenueActual(projectson.getC_Project_ID(), true, false).compareTo(Env.ZERO)!=0)
     				{
-    					share = projectson.calcCostOrRevenueActual(true).divide(revenueAll,  5, BigDecimal.ROUND_HALF_DOWN);
+    					share = projectson.calcCostOrRevenueActual(projectson.getC_Project_ID(), true, false).divide(revenueAll,  5, BigDecimal.ROUND_HALF_DOWN);
     				}
     				else
     				{
@@ -1363,62 +1405,83 @@ public class MProject extends X_C_Project
     }
 
 	/**
-	 * Calculates this Project's Costs of Product Issues
-	 * Out of Project Lines
+	 * Calculates a Project's Costs of Product Issues
+	 * Out of Cost Detail
+	 * @param c_Project_ID Project ID
+	 * @param isParentProject  (boolean) true (Include all child Projects) or false (Only this Project)
 	 *	@return sum of Costs of Product Issues of all phases and tasks 
 	 */
-    private BigDecimal calcCostIssueProduct() {		
+    private BigDecimal calcCostIssueProduct(int c_Project_ID, boolean isParentProject) {		
     	StringBuffer sql = new StringBuffer();
-    	sql.append("SELECT coalesce(sum(cd.CostAmt + cd.CostAmtLL + cd.CostAdjustment + cd.CostAdjustmentLL),0) ");
-    	sql.append(" FROM C_ProjectIssue pi ");
-    	sql.append(" INNER JOIN M_CostDetail cd on pi.c_ProjectIssue_ID=cd.c_ProjectIssue_ID ");
-    	sql.append(" WHERE pi.C_Project_ID=? ");
-    	sql.append("and pi.M_InOutLine_ID is not null ");
+    	sql.append("SELECT COALESCE(SUM(cd.CostAmt + cd.CostAmtLL + cd.CostAdjustment + cd.CostAdjustmentLL),0) ");
+    	sql.append("FROM C_ProjectIssue pi ");
+    	sql.append("INNER JOIN M_CostDetail cd ON pi.c_ProjectIssue_ID=cd.c_ProjectIssue_ID ");
+
+    	if(isParentProject)
+    		sql.append("WHERE pi.C_Project_ID IN (SELECT c_project_ID FROM c_project WHERE c_project_parent_ID =?) " );
+    	else
+    	    sql.append("WHERE pi.C_Project_ID=? ");
+    	   	
+    	sql.append("AND pi.M_InOutLine_ID IS NOT NULL ");
     	
 		ArrayList<Object> params = new ArrayList<Object>();
-		params.add(getC_Project_ID());
+		params.add(c_Project_ID);
 		
     	BigDecimal result = DB.getSQLValueBDEx(null, sql.toString(), params);
     	return result==null?Env.ZERO:result;
     }
 
 	/**
-	 * Calculates this Project's Costs of Product Issues
+	 * Calculates a Project's Costs of Product Issues
 	 * Out of Project Lines
+	 * @param c_Project_ID Project ID
+	 * @param isParentProject  (boolean) true (Include all child Projects) or false (Only this Project)
 	 *	@return sum of Costs of Product Issues of all phases and tasks 
 	 */
-    private BigDecimal calcCostIssueResource() {		
+    private BigDecimal calcCostIssueResource(int c_Project_ID, boolean isParentProject) {		
     	StringBuffer sql = new StringBuffer();
-    	sql.append("select sum (pl.committedamt) ");
-    	sql.append("from c_projectline pl ");
-    	sql.append("inner join c_project p on (pl.c_project_id=p.c_project_id) ");
-    	sql.append("where pl.C_Project_ID=? ");
-    	sql.append("and pl.c_projectissue_ID is not null ");
-    	sql.append("and pl.s_timeexpenseline_ID is not null ");
+    	sql.append("SELECT SUM (pl.committedamt) ");
+    	sql.append("FROM c_projectline pl ");
+    	sql.append("INNER JOIN c_project p ON (pl.c_project_id=p.c_project_id) ");
+
+    	if(isParentProject)
+    		sql.append("WHERE pl.C_Project_ID IN (SELECT c_project_ID FROM c_project WHERE c_project_parent_ID =?) " );
+    	else
+    	    sql.append("WHERE pl.C_Project_ID=? ");
+    	
+    	sql.append("AND pl.c_projectissue_ID IS NOT NULL ");
+    	sql.append("AND pl.s_timeexpenseline_ID IS NOT NULL ");
     	
 		ArrayList<Object> params = new ArrayList<Object>();
-		params.add(getC_Project_ID());
+		params.add(c_Project_ID);
 		
     	BigDecimal result = DB.getSQLValueBDEx(null, sql.toString(), params);
     	return result==null?Env.ZERO:result;
     }   
 
 	/**
-	 * Calculates this Project's Costs of Inventory Issues
-	 * Out of Project Lines
+	 * Calculates a Project's Costs of Inventory Issues
+	 * @param c_Project_ID Project ID
+	 * @param isParentProject  (boolean) true (Include all child Projects) or false (Only this Project)
+	 * Out of Cost Detail
 	 *	@return sum of Costs of Inventory Issues of all phases and tasks 
 	 */
-    private BigDecimal calcCostIssueInventory() {		
+    private BigDecimal calcCostIssueInventory(int c_Project_ID, boolean isParentProject) {		
     	StringBuffer sql = new StringBuffer();
-    	sql.append("SELECT coalesce(sum(cd.CostAmt + cd.CostAmtLL + cd.CostAdjustment + cd.CostAdjustmentLL),0) ");
-    	sql.append(" FROM C_ProjectIssue pi ");
-    	sql.append(" INNER JOIN M_CostDetail cd on pi.c_ProjectIssue_ID=cd.c_ProjectIssue_ID ");
-    	sql.append(" WHERE pi.C_Project_ID=? ");
-    	sql.append("and pi.M_InOutLine_ID is  null ");
-    	sql.append("and pi.s_timeexpenseline_ID is null ");
+    	sql.append("SELECT COALESCE(SUM(cd.CostAmt + cd.CostAmtLL + cd.CostAdjustment + cd.CostAdjustmentLL),0) ");
+    	sql.append("FROM C_ProjectIssue pi ");
+    	sql.append("INNER JOIN M_CostDetail cd ON pi.c_ProjectIssue_ID=cd.c_ProjectIssue_ID ");
+
+    	if(isParentProject)
+    		sql.append("WHERE pi.C_Project_ID IN (SELECT c_project_ID FROM c_project WHERE c_project_parent_ID =?) " );
+    	else
+    	    sql.append("WHERE pi.C_Project_ID=? ");
+    	
+    	sql.append("AND pi.M_InOutLine_ID IS  NULL ");
+    	sql.append("AND pi.s_timeexpenseline_ID IS NULL ");
     	
 		ArrayList<Object> params = new ArrayList<Object>();
-		params.add(getC_Project_ID());
+		params.add(c_Project_ID);
 		
     	BigDecimal result = DB.getSQLValueBDEx(null, sql.toString(), params);
     	return result==null?Env.ZERO:result;
@@ -1426,23 +1489,13 @@ public class MProject extends X_C_Project
     
 	/**
 	 * Calculates Costs of Product Issues for this Project's children 
-	 * Out of Project Lines
+	 * Out of Cost Detail
 	 * @param c_project_parent_ID Project ID
+	 * @param isParentProject  (boolean) true (Include all child Projects) or false (Only this Project)
 	 *	@return sum of Costs of Product Issues of all phases and tasks of the project's children
 	 */
-    private BigDecimal calcCostIssueProductSons(int c_Project_Parent_ID) {		
-    	StringBuffer sql = new StringBuffer();
-    	sql.append("select sum (pl.committedamt) ");
-    	sql.append("from c_projectline pl ");
-    	sql.append("inner join c_project p on (pl.c_project_id=p.c_project_id) ");
-    	sql.append("where pl.c_projectissue_ID is not null ");
-    	sql.append("and pl.m_inoutline_ID is not null ");
-    	sql.append("and pl.c_project_ID in (select c_project_ID from c_project where c_project_parent_ID =?)");
-    	
-		ArrayList<Object> params = new ArrayList<Object>();
-		params.add(c_Project_Parent_ID);
-		
-    	BigDecimal result = DB.getSQLValueBDEx(null, sql.toString(), params);
+    private BigDecimal calcCostIssueProductSons(int c_Project_Parent_ID, boolean isParentProject) {	
+    	BigDecimal result = calcCostIssueProduct(c_Project_Parent_ID, isParentProject);
     	return result==null?Env.ZERO:result;
     }  
     
@@ -1450,44 +1503,23 @@ public class MProject extends X_C_Project
 	 * Calculates Costs of Resource Issues for this Project's children 
 	 * Out of Project Lines
 	 * @param c_project_parent_ID Project ID
+	 * @param isParentProject  (boolean) true (Include all child Projects) or false (Only this Project)
 	 *	@return sum of Costs of Resource Issues of all phases and tasks of the project's children
 	 */
-    private BigDecimal calcCostIssueResourceSons(int c_Project_Parent_ID) {		
-    	StringBuffer sql = new StringBuffer();
-    	sql.append("select sum (pl.committedamt) ");
-    	sql.append("from c_projectline pl ");
-    	sql.append("inner join c_project p on (pl.c_project_id=p.c_project_id) ");
-    	sql.append("where pl.c_projectissue_ID is not null ");
-    	sql.append("and pl.s_timeexpenseline_ID is not null ");
-    	sql.append("and pl.c_project_ID in (select c_project_ID from c_project where c_project_parent_ID =?)");
-    	
-		ArrayList<Object> params = new ArrayList<Object>();
-		params.add(c_Project_Parent_ID);
-		
-    	BigDecimal result = DB.getSQLValueBDEx(null, sql.toString(), params);
+    private BigDecimal calcCostIssueResourceSons(int c_Project_Parent_ID, boolean isParentProject) {		
+    	BigDecimal result = calcCostIssueResource(c_Project_Parent_ID, isParentProject);
     	return result==null?Env.ZERO:result;
     }  
     
 	/**
 	 * Calculates Costs of Inventory Issues for this Project's children 
-	 * Out of Project Lines
+	 * Out of Cost Detail
 	 * @param c_project_parent_ID Project ID
+	 * @param isParentProject  (boolean) true (Include all child Projects) or false (Only this Project)
 	 *	@return sum of Costs of Inventory Issues of all phases and tasks of the project's children
 	 */
-    private BigDecimal calcCostIssueInventorySons(int c_Project_Parent_ID) {		
-    	StringBuffer sql = new StringBuffer();
-    	sql.append("select sum (pl.committedamt) ");
-    	sql.append("from c_projectline pl ");
-    	sql.append("inner join c_project p on (pl.c_project_id=p.c_project_id) ");
-    	sql.append("where pl.c_projectissue_ID is not null ");
-    	sql.append("and pl.m_inoutline_ID is null ");
-    	sql.append("and pl.s_timeexpenseline_ID is null ");
-    	sql.append("and pl.c_project_ID in (select c_project_ID from c_project where c_project_parent_ID =?)");
-    	
-		ArrayList<Object> params = new ArrayList<Object>();
-		params.add(c_Project_Parent_ID);
-		
-    	BigDecimal result = DB.getSQLValueBDEx(null, sql.toString(), params);
+    private BigDecimal calcCostIssueInventorySons(int c_Project_Parent_ID, boolean isParentProject) {	
+    	BigDecimal result = calcCostIssueInventory(c_Project_Parent_ID, isParentProject);
     	return result==null?Env.ZERO:result;
     }
 	
