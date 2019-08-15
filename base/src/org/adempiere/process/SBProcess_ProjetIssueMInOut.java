@@ -114,7 +114,10 @@ public class SBProcess_ProjetIssueMInOut extends SBProcess_ProjetIssueMInOutAbst
 				.setParameters(projectIssue.getC_ProjectIssue_ID())
 				.first();
 		if (costDetail != null) {
-			firstProjectLine.setCommittedAmt(costDetail.getCurrentCostPrice());
+			firstProjectLine.setCommittedAmt(costDetail.getCostAmt()
+					.add(costDetail.getCostAmtLL())
+					.add(costDetail.getCostAdjustment())
+					.add(costDetail.getCostAdjustmentLL()));
 		}
 		firstProjectLine.saveEx();
 		addLog(projectIssue.getLine(), projectIssue.getMovementDate(), projectIssue.getMovementQty(), null);

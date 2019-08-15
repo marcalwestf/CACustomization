@@ -152,9 +152,9 @@ public class TaxDeclarationCreate extends TaxDeclarationCreateAbstract
 	}
 	
 	private Boolean TaxDeclarationLineExists(int invoiceID) {
-		String whereClause = "C_Invoice_ID=?";
+		String whereClause = "C_Invoice_ID=? and C_Taxdeclaration_ID=?";
 		int no = new Query(getCtx(), MTaxDeclarationLine.Table_Name, whereClause, get_TrxName())
-				.setParameters(invoiceID)
+				.setParameters(invoiceID, getRecord_ID())
 				.count();
 		return  no>0?true:false;
 		

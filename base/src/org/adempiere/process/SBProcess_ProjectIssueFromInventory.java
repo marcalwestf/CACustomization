@@ -82,7 +82,10 @@ public class SBProcess_ProjectIssueFromInventory extends SBProcess_ProjectIssueF
 				.setParameters(projectIssue.getC_ProjectIssue_ID())
 				.first();
 		if (costDetail != null) {
-			projectLine.setCommittedAmt(costDetail.getCurrentCostPrice());
+			projectLine.setCommittedAmt(costDetail.getCostAmt()
+					.add(costDetail.getCostAmtLL())
+					.add(costDetail.getCostAdjustment())
+					.add(costDetail.getCostAdjustmentLL()));
 		}
 		projectLine.saveEx();
 		addLog(projectIssue.getLine(), projectIssue.getMovementDate(), projectIssue.getMovementQty(), null);
