@@ -1,7 +1,3 @@
--- Function: linenetamtrealinvoiceline(numeric)
-
--- DROP FUNCTION linenetamtrealinvoiceline(numeric);
-
 CREATE OR REPLACE FUNCTION linenetamtrealinvoiceline(p_c_invoiceline_id numeric)
   RETURNS numeric AS
 $BODY$
@@ -19,7 +15,4 @@ BEGIN
 END;
 
 $BODY$
-  LANGUAGE plpgsql VOLATILE
-  COST 100;
-ALTER FUNCTION linenetamtrealinvoiceline(numeric)
-  OWNER TO adempiere;
+  LANGUAGE plpgsql;

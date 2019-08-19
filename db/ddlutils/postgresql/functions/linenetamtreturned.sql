@@ -1,7 +1,3 @@
--- Function: linenetamtreturned(numeric)
-
--- DROP FUNCTION linenetamtreturned(numeric);
-
 CREATE OR REPLACE FUNCTION linenetamtreturned(p_invoiceline_id numeric)
   RETURNS numeric AS
 $BODY$
@@ -29,7 +25,4 @@ BEGIN
 END;
 
 $BODY$
-  LANGUAGE plpgsql VOLATILE
-  COST 100;
-ALTER FUNCTION linenetamtreturned(numeric)
-  OWNER TO adempiere;
+  LANGUAGE plpgsql;

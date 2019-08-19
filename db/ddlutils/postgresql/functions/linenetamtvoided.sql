@@ -1,7 +1,3 @@
--- Function: linenetamtvoided(numeric)
-
--- DROP FUNCTION linenetamtvoided(numeric);
-
 CREATE OR REPLACE FUNCTION linenetamtvoided(p_invoicereversalline_id numeric)
   RETURNS numeric AS
 $BODY$
@@ -31,7 +27,4 @@ BEGIN
 END;
 
 $BODY$
-  LANGUAGE plpgsql VOLATILE
-  COST 100;
-ALTER FUNCTION linenetamtvoided(numeric)
-  OWNER TO adempiere;
+  LANGUAGE plpgsql;

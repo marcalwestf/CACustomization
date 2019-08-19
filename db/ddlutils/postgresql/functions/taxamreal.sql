@@ -1,7 +1,3 @@
-﻿-- Function: adempiere.taxamtreal(numeric)
-
--- DROP FUNCTION adempiere.taxamtreal(numeric);
-
 CREATE OR REPLACE FUNCTION taxamtreal(p_c_orderline_id numeric)
   RETURNS numeric AS
 $BODY$
@@ -31,7 +27,4 @@ select case when pl.istaxincluded = 'Y' AND t.rate <> 0
 END;
 
 $BODY$
-  LANGUAGE plpgsql VOLATILE
-  COST 100;
-ALTER FUNCTION taxamtreal(numeric)
-  OWNER TO adempiere;
+  LANGUAGE plpgsql;
