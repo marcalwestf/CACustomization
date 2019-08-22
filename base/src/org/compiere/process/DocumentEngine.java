@@ -35,6 +35,7 @@ import org.compiere.model.MBankStatement;
 import org.compiere.model.MCash;
 import org.compiere.model.MClient;
 import org.compiere.model.MColumn;
+import org.compiere.model.MCommission;
 import org.compiere.model.MInOut;
 import org.compiere.model.MInventory;
 import org.compiere.model.MInvoice;
@@ -1226,6 +1227,19 @@ public class DocumentEngine implements DocAction
 			{
 				options[index++] = DocumentEngine.ACTION_Prepare;
 			}
+		}
+		
+		else if (AD_Table_ID == MCommission.Table_ID || AD_Table_ID == MCommission.Table_ID) // I_HR_Process.Table_ID
+		{
+			if (docStatus.equals(DocumentEngine.STATUS_Drafted)
+					|| docStatus.equals(DocumentEngine.STATUS_InProgress)
+					|| docStatus.equals(DocumentEngine.STATUS_Invalid))
+				{
+					options[index++] = DocumentEngine.ACTION_Prepare;
+					options[index++] = DocumentEngine.ACTION_Close;
+				}
+				//	Complete                    ..  CO
+				
 		}
 		return index;
 	}
