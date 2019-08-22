@@ -379,7 +379,6 @@ public class SB_InOutGenerateFromOrderLine extends SB_InOutGenerateFromOrderLine
 				line = new MInOutLine (m_shipment);
 				line.setOrderLine(orderLine, M_Locator_ID, order.isSOTrx() ? deliver : Env.ZERO);
 				line.setQty(deliver);
-				line.setM_AttributeSetInstance_ID(storage.getM_AttributeSetInstance_ID());
 				MAttributeSet.validateAttributeSetInstanceMandatory(product, MInOutLine.Table_ID , line.isSOTrx() , line.getM_AttributeSetInstance_ID());
 				//if (product != null && product.isASIMandatory(order.isSOTrx(),line.getAD_Org_ID()))
 				//	line.setM_AttributeSetInstance_ID(storage.getM_AttributeSetInstance_ID());
