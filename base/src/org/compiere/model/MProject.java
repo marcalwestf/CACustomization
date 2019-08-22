@@ -645,53 +645,50 @@ public class MProject extends X_C_Project
 		
 		// Update Prices
 		result = calcLineNetAmt();
-		set_ValueOfColumn("ProjectPriceListRevenuePlanned", result);
+		set_ValueOfColumn("ProjectPriceListRevenuePlanned", result.setScale(2, BigDecimal.ROUND_HALF_UP));
 		result = calcActualamt();
-		set_ValueOfColumn("ProjectOfferedRevenuePlanned", result);
+		set_ValueOfColumn("ProjectOfferedRevenuePlanned", result.setScale(2, BigDecimal.ROUND_HALF_UP));
 		
 		// Update costs
 		// Parameters:                     Project         isSOtrx  isParentProject
 		result = calcCostOrRevenuePlanned(getC_Project_ID(), false, false);      // Planned costs from Purchase Orders this project
-		set_ValueOfColumn("CostPlanned", result);
+		set_ValueOfColumn("CostPlanned", result.setScale(2, BigDecimal.ROUND_HALF_UP));
 		result = calcCostOrRevenueActual(getC_Project_ID(), false, false); 		 // Actual costs from Purchase Invoices
-		set_ValueOfColumn("CostAmt", result);
+		set_ValueOfColumn("CostAmt", result.setScale(2, BigDecimal.ROUND_HALF_UP));
 		result = calcNotInvoicedCostOrRevenue(getC_Project_ID(), false, false);  // Planned but not yet invoiced costs
-		set_ValueOfColumn("CostNotInvoiced", result);
-		result = calcCostOrRevenueExtrapolated(getC_Project_ID(), false, false); // Actual costs + Planned but not yet invoiced costs
-		set_ValueOfColumn("CostExtrapolated", result);
+		set_ValueOfColumn("CostNotInvoiced", result.setScale(2, BigDecimal.ROUND_HALF_UP));
+		BigDecimal costExtrapolated = calcCostOrRevenueExtrapolated(getC_Project_ID(), false, false); // Actual costs + Planned but not yet invoiced costs
+		set_ValueOfColumn("CostExtrapolated", costExtrapolated.setScale(2, BigDecimal.ROUND_HALF_UP));
 
 		// Update revenues
 		result = calcCostOrRevenuePlanned(getC_Project_ID(), true, false);     // Planned revenue from Sales Orders this project
-		set_ValueOfColumn("RevenuePlanned", result);
+		set_ValueOfColumn("RevenuePlanned", result.setScale(2, BigDecimal.ROUND_HALF_UP));
 		result = calcCostOrRevenueActual(getC_Project_ID(), true, false); 	   // Actual revenue from Sales Invoices
-		set_ValueOfColumn("RevenueAmt", result);
+		set_ValueOfColumn("RevenueAmt", result.setScale(2, BigDecimal.ROUND_HALF_UP));
 		result = calcNotInvoicedCostOrRevenue(getC_Project_ID(), true, false); // Planned but not yet invoiced revenue
-		set_ValueOfColumn("RevenueNotInvoiced", result);
-		BigDecimal revenueExtrapolated =  Env.ZERO; // To be used later in the program
-		revenueExtrapolated = calcCostOrRevenueExtrapolated(getC_Project_ID(), true, false);  // Actual revenue + Planned but not yet invoiced revenue
-		set_ValueOfColumn("RevenueExtrapolated", revenueExtrapolated);
+		set_ValueOfColumn("RevenueNotInvoiced", result.setScale(2, BigDecimal.ROUND_HALF_UP));
+		BigDecimal revenueExtrapolated = calcCostOrRevenueExtrapolated(getC_Project_ID(), true, false);  // Actual revenue + Planned but not yet invoiced revenue
+		set_ValueOfColumn("RevenueExtrapolated", revenueExtrapolated.setScale(2, BigDecimal.ROUND_HALF_UP));
 		
 		// Update Issue Costs
 		BigDecimal costIssueProduct = calcCostIssueProduct(getC_Project_ID(), false);		// Costs of Product Issues
-		set_ValueOfColumn("CostIssueProduct", costIssueProduct);
+		set_ValueOfColumn("CostIssueProduct", costIssueProduct.setScale(2, BigDecimal.ROUND_HALF_UP));
 		BigDecimal costIssueResource = calcCostIssueResource(getC_Project_ID(), false);		// Costs of Resource Issues
-		set_ValueOfColumn("CostIssueResource", costIssueResource);
+		set_ValueOfColumn("CostIssueResource", costIssueResource.setScale(2, BigDecimal.ROUND_HALF_UP));
 		BigDecimal costIssueInventory = calcCostIssueInventory(getC_Project_ID(), false);   // Costs of Inventory Issues
-		set_ValueOfColumn("CostIssueInventory", costIssueInventory);
+		set_ValueOfColumn("CostIssueInventory", costIssueInventory.setScale(2, BigDecimal.ROUND_HALF_UP));
 		set_ValueOfColumn("CostIssueSum", costIssueProduct.add(costIssueResource).
-				add(costIssueInventory));  // Issue sum = Costs of Product Issue + Costs of Resource Issue + Costs of Inventory Issues
+				add(costIssueInventory).setScale(2, BigDecimal.ROUND_HALF_UP));  // Issue sum = Costs of Product Issue + Costs of Resource Issue + Costs of Inventory Issues
 		set_ValueOfColumn("CostDiffExcecution", ((BigDecimal)get_Value("CostPlanned")).
 				subtract(costIssueProduct).
-				subtract(costIssueInventory));  // Execution Diff = Planned Costs - (Product Issue Costs + Inventory Issue Costs
+				subtract(costIssueInventory).setScale(2, BigDecimal.ROUND_HALF_UP));  // Execution Diff = Planned Costs - (Product Issue Costs + Inventory Issue Costs
 
 		// Gross Margin
 		// Gross margin = extrapolated revenue - (extrapolated costs + resource issue costs + inventory issue costs)
-		BigDecimal sumCosts = ((BigDecimal)get_Value("CostExtrapolated")).
-				add(costIssueResource).
-				add(costIssueInventory);
+		BigDecimal sumCosts = costExtrapolated.add(costIssueResource).add(costIssueInventory);
 		
 		BigDecimal grossMargin = revenueExtrapolated.subtract(sumCosts);
-		set_ValueOfColumn("GrossMargin",grossMargin);		
+		set_ValueOfColumn("GrossMargin",grossMargin.setScale(2, BigDecimal.ROUND_HALF_UP));		
 
 		// Margin (%) only for this level; there is no use to calculate it on LL
 		if(sumCosts.compareTo(Env.ZERO)==0 && revenueExtrapolated.compareTo(Env.ZERO)==0) {
@@ -716,44 +713,44 @@ public class MProject extends X_C_Project
 		if (isSummary()) { // Project is a parent project
 			// Update costs of direct children (not recursively all children!)
 			BigDecimal costPlannedLL = calcCostOrRevenuePlannedSons(getC_Project_ID(), false, true);	       // Planned costs from Purchase Orders of children
-			set_Value("CostPlannedLL", costPlannedLL);
+			set_Value("CostPlannedLL", costPlannedLL.setScale(2, BigDecimal.ROUND_HALF_UP));
 			BigDecimal costAmtLL = calcCostOrRevenueActualSons(getC_Project_ID(), false, true);		           // Actual costs from Purchase Invoices of children
-			set_Value("CostAmtLL", costAmtLL);
+			set_Value("CostAmtLL", costAmtLL.setScale(2, BigDecimal.ROUND_HALF_UP));
 			BigDecimal costNotInvoicedLL = calcNotInvoicedCostOrRevenueSons(getC_Project_ID(), false, true);   // Planned but not yet invoiced costs of children
-			set_Value("CostNotInvoicedLL", costNotInvoicedLL);	
+			set_Value("CostNotInvoicedLL", costNotInvoicedLL.setScale(2, BigDecimal.ROUND_HALF_UP));	
 			BigDecimal costExtrapolatedLL = calcCostOrRevenueExtrapolatedSons(getC_Project_ID(), false, true); // Actual costs + Planned but not yet invoiced costs of children
-			set_Value("CostExtrapolatedLL", costExtrapolatedLL);			
+			set_Value("CostExtrapolatedLL", costExtrapolatedLL.setScale(2, BigDecimal.ROUND_HALF_UP));			
 			
 			// update revenues of children
 			BigDecimal revenuePlannedLL = calcCostOrRevenuePlannedSons(getC_Project_ID(), true, true);	         // Planned revenue from Sales Orders of children
-			set_ValueOfColumn("RevenuePlannedLL", revenuePlannedLL);
+			set_ValueOfColumn("RevenuePlannedLL", revenuePlannedLL.setScale(2, BigDecimal.ROUND_HALF_UP));
 			BigDecimal revenueAmtLL = calcCostOrRevenueActualSons(getC_Project_ID(), true, true);		         // Actual revenue from Sales Invoices of children
-			set_ValueOfColumn("RevenueAmtLL", revenueAmtLL);
+			set_ValueOfColumn("RevenueAmtLL", revenueAmtLL.setScale(2, BigDecimal.ROUND_HALF_UP));
 			BigDecimal revenueNotInvoicedLL = calcNotInvoicedCostOrRevenueSons(getC_Project_ID(), true, true);   // Planned but not yet invoiced revenue of children
-			set_ValueOfColumn("RevenueNotInvoicedLL", revenueNotInvoicedLL);	
+			set_ValueOfColumn("RevenueNotInvoicedLL", revenueNotInvoicedLL.setScale(2, BigDecimal.ROUND_HALF_UP));	
 			BigDecimal revenueExtrapolatedLL = calcCostOrRevenueExtrapolatedSons(getC_Project_ID(), true, true); // Actual revenue + Planned but not yet invoiced revenue of children
-			set_ValueOfColumn("RevenueExtrapolatedLL", revenueExtrapolatedLL);				
+			set_ValueOfColumn("RevenueExtrapolatedLL", revenueExtrapolatedLL.setScale(2, BigDecimal.ROUND_HALF_UP));				
 			
 			// Update Issue Costs of children
 			BigDecimal costIssueProductLL = calcCostIssueProductSons(getC_Project_ID(), true);      // Costs of Product Issues of children
-			set_ValueOfColumn("CostIssueProductLL", costIssueProductLL);
+			set_ValueOfColumn("CostIssueProductLL", costIssueProductLL.setScale(2, BigDecimal.ROUND_HALF_UP));
 			BigDecimal costIssueResourceLL = calcCostIssueResourceSons(getC_Project_ID(), true);    // Costs of Resource Issues of children
-			set_ValueOfColumn("CostIssueResourceLL", costIssueResourceLL);
+			set_ValueOfColumn("CostIssueResourceLL", costIssueResourceLL.setScale(2, BigDecimal.ROUND_HALF_UP));
 			BigDecimal costIssueInventoryLL = calcCostIssueInventorySons(getC_Project_ID(), true);  // Costs of Inventory Issues of children
-			set_ValueOfColumn("CostIssueInventoryLL", costIssueInventoryLL);
+			set_ValueOfColumn("CostIssueInventoryLL", costIssueInventoryLL.setScale(2, BigDecimal.ROUND_HALF_UP));
 			BigDecimal costIssueSumLL  = costIssueProductLL.  // Issue sum LL = Costs of Product Issue LL + Costs of Resource Issue LL+ Costs of Inventory Issue LL
-					add(costIssueResourceLL).add(costIssueInventoryLL); 
-			set_ValueOfColumn("CostIssueSumLL", costIssueSumLL);
+					add(costIssueResourceLL).add(costIssueInventoryLL).setScale(2, BigDecimal.ROUND_HALF_UP); 
+			set_ValueOfColumn("CostIssueSumLL", costIssueSumLL.setScale(2, BigDecimal.ROUND_HALF_UP));
 			BigDecimal costDiffExcecutionLL  = costPlannedLL. // Execution Diff LL = Planned Costs LL - (Product Issue Costs LL + Inventory Issue Costs LL)
-					subtract(costIssueProductLL).subtract(costIssueInventoryLL);
-			set_ValueOfColumn("CostDiffExcecutionLL", costDiffExcecutionLL);
+					subtract(costIssueProductLL).subtract(costIssueInventoryLL).setScale(2, BigDecimal.ROUND_HALF_UP);
+			set_ValueOfColumn("CostDiffExcecutionLL", costDiffExcecutionLL.setScale(2, BigDecimal.ROUND_HALF_UP));
 
 			// Gross margin LL = extrapolated revenue LL - (extrapolated costs LL + resource issue costs LL + inventory issue costs LL)
 			grossMarginLL = revenueExtrapolatedLL.subtract(costExtrapolatedLL).
 					subtract(costIssueResourceLL).subtract(costIssueInventoryLL);
 			if(grossMarginLL==null)
 				grossMarginLL = Env.ZERO;
-			set_ValueOfColumn("GrossMarginLL",grossMarginLL);
+			set_ValueOfColumn("GrossMarginLL",grossMarginLL.setScale(2, BigDecimal.ROUND_HALF_UP));
 
 			saveEx();  // TODO: delete line
 
@@ -802,19 +799,26 @@ public class MProject extends X_C_Project
 				costDiffExcecutionLL  = costDiffExcecutionLL.add((BigDecimal)sonProject.get_Value("CostDiffExcecutionLL")==null  ?Env.ZERO:(BigDecimal)sonProject.get_Value("CostDiffExcecutionLL"));
 			}
 			// Set Low Level Amounts
-			set_ValueOfColumn("CostPlannedLL",         costPlannedLL);
-			set_ValueOfColumn("CostAmtLL",             costAmtLL);
-			set_ValueOfColumn("CostNotInvoicedLL",     costNotInvoicedLL);
-			set_ValueOfColumn("CostExtrapolatedLL",    costExtrapolatedLL);
-			set_ValueOfColumn("RevenuePlannedLL",      revenuePlannedLL);
-			set_ValueOfColumn("RevenueAmtLL",          revenueAmtLL);
-			set_ValueOfColumn("RevenueNotInvoicedLL",  revenueNotInvoicedLL);
-			set_ValueOfColumn("RevenueExtrapolatedLL", revenueExtrapolatedLL);
-			set_ValueOfColumn("CostIssueProductLL",    costIssueProductLL);
-			set_ValueOfColumn("CostIssueResourceLL",   costIssueResourceLL);
-			set_ValueOfColumn("CostIssueInventoryLL",  costIssueInventoryLL);
-			set_ValueOfColumn("CostIssueSumLL",        costIssueSumLL);
-			set_ValueOfColumn("CostDiffExcecutionLL",  costDiffExcecutionLL);
+			set_ValueOfColumn("CostPlannedLL",         costPlannedLL.setScale(2, BigDecimal.ROUND_HALF_UP));
+			set_ValueOfColumn("CostAmtLL",             costAmtLL.setScale(2, BigDecimal.ROUND_HALF_UP));
+			set_ValueOfColumn("CostNotInvoicedLL",     costNotInvoicedLL.setScale(2, BigDecimal.ROUND_HALF_UP));
+			set_ValueOfColumn("CostExtrapolatedLL",    costExtrapolatedLL.setScale(2, BigDecimal.ROUND_HALF_UP));
+			set_ValueOfColumn("RevenuePlannedLL",      revenuePlannedLL.setScale(2, BigDecimal.ROUND_HALF_UP));
+			set_ValueOfColumn("RevenueAmtLL",          revenueAmtLL.setScale(2, BigDecimal.ROUND_HALF_UP));
+			set_ValueOfColumn("RevenueNotInvoicedLL",  revenueNotInvoicedLL.setScale(2, BigDecimal.ROUND_HALF_UP));
+			set_ValueOfColumn("RevenueExtrapolatedLL", revenueExtrapolatedLL.setScale(2, BigDecimal.ROUND_HALF_UP));
+			set_ValueOfColumn("CostIssueProductLL",    costIssueProductLL.setScale(2, BigDecimal.ROUND_HALF_UP));
+			set_ValueOfColumn("CostIssueResourceLL",   costIssueResourceLL.setScale(2, BigDecimal.ROUND_HALF_UP));
+			set_ValueOfColumn("CostIssueInventoryLL",  costIssueInventoryLL.setScale(2, BigDecimal.ROUND_HALF_UP));
+			set_ValueOfColumn("CostIssueSumLL",        costIssueSumLL.setScale(2, BigDecimal.ROUND_HALF_UP));
+			set_ValueOfColumn("CostDiffExcecutionLL",  costDiffExcecutionLL.setScale(2, BigDecimal.ROUND_HALF_UP));
+
+			// Gross margin LL = extrapolated revenue LL - (extrapolated costs LL + resource issue costs LL + inventory issue costs LL)
+			grossMarginLL = grossMarginLL.add(revenueExtrapolatedLL).subtract(costExtrapolatedLL).
+					subtract(costIssueResourceLL).subtract(costIssueInventoryLL);
+			if(grossMarginLL==null)
+				grossMarginLL = Env.ZERO;
+			set_ValueOfColumn("GrossMarginLL",grossMarginLL.setScale(2, BigDecimal.ROUND_HALF_UP));		
 
 			saveEx();  // Low Level Amounts
 		}
@@ -825,11 +829,11 @@ public class MProject extends X_C_Project
 			// Project is child: update direct parent project
 	    	MProject fatherProject = new MProject(getCtx(), C_Project_Parent_ID, get_TrxName());
 			result = calcCostOrRevenuePlannedSons(C_Project_Parent_ID, false, true);      // Planned costs from Purchase Orders of all children of parent project
-			fatherProject.set_Value("CostPlannedLL", result);
+			fatherProject.set_Value("CostPlannedLL", result.setScale(2, BigDecimal.ROUND_HALF_UP));
 			result = calcCostOrRevenueActualSons(C_Project_Parent_ID, false, true);       // Actual costs from Purchase Invoices of all children of parent project
-			fatherProject.set_Value("CostAmtLL", result);
+			fatherProject.set_Value("CostAmtLL", result.setScale(2, BigDecimal.ROUND_HALF_UP));
 			result = calcCostOrRevenueExtrapolatedSons(C_Project_Parent_ID, false, true); // Sum of actual costs and planned (not yet invoiced) costs of all children of parent project
-			fatherProject.set_Value("CostExtrapolatedLL", result);		
+			fatherProject.set_Value("CostExtrapolatedLL", result.setScale(2, BigDecimal.ROUND_HALF_UP));		
 			
 			fatherProject.saveEx();
 
@@ -867,9 +871,9 @@ public class MProject extends X_C_Project
 					shareVolume = volume.divide(volumeFather, 5, BigDecimal.ROUND_HALF_DOWN);
 				calcCostPlannedInherited(sonProject, costPlannedFather,costActualFather,costExtrapolatedFather, shareVolume, shareWeight, shareRevenue);				
 			}
-			fatherProject.set_ValueOfColumn("RevenuePlannedLL", revenuePlannedSons);
-			fatherProject.set_ValueOfColumn("RevenueAmtLL", revenueAmtSons);
-			fatherProject.set_ValueOfColumn("RevenueExtrapolatedLL", revenueAllExtrapolated);
+			fatherProject.set_ValueOfColumn("RevenuePlannedLL", revenuePlannedSons.setScale(2, BigDecimal.ROUND_HALF_UP));
+			fatherProject.set_ValueOfColumn("RevenueAmtLL", revenueAmtSons.setScale(2, BigDecimal.ROUND_HALF_UP));
+			fatherProject.set_ValueOfColumn("RevenueExtrapolatedLL", revenueAllExtrapolated.setScale(2, BigDecimal.ROUND_HALF_UP));
 			fatherProject.saveEx();
 			saveEx();
 		}
@@ -877,7 +881,7 @@ public class MProject extends X_C_Project
 		BigDecimal grossMarginTotal = ((BigDecimal)get_Value("GrossMargin")).add(grossMarginLL);
 		if(grossMarginTotal==null)
 			grossMarginTotal = Env.ZERO;
-		set_ValueOfColumn("GrossMarginTotal", grossMarginTotal);
+		set_ValueOfColumn("GrossMarginTotal", grossMarginTotal.setScale(2, BigDecimal.ROUND_HALF_UP));
 		
 		Date date = new Date();
 		long time = date.getTime();
