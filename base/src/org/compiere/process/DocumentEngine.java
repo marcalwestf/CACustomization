@@ -35,6 +35,7 @@ import org.compiere.model.MBankStatement;
 import org.compiere.model.MCash;
 import org.compiere.model.MClient;
 import org.compiere.model.MColumn;
+import org.compiere.model.MCommission;
 import org.compiere.model.MInOut;
 import org.compiere.model.MInventory;
 import org.compiere.model.MInvoice;
@@ -1090,7 +1091,7 @@ public class DocumentEngine implements DocAction
 		/********************
 		 *  Production
 		 */
-		else if (AD_Table_ID == MProduction.Table_ID)
+		else if (AD_Table_ID == MProduction.Table_ID || AD_Table_ID == MProductionBatch.Table_ID)
 		{
 			//	Draft                       ..  DR/IP/IN
 			if (docStatus.equals(DocumentEngine.STATUS_Drafted)
@@ -1212,6 +1213,22 @@ public class DocumentEngine implements DocAction
 		 *  Project Issue
 		 */
 		else if (AD_Table_ID == MProjectIssue.Table_ID || AD_Table_ID == MProject.Table_ID)
+		{
+			//	Complete                    ..  CO
+			if (docStatus.equals(DocumentEngine.STATUS_Completed))
+			{
+				options[index++] = DocumentEngine.ACTION_Void;
+				options[index++] = DocumentEngine.ACTION_Reverse_Correct;
+				options[index++] = DocumentEngine.ACTION_Reverse_Accrual;
+			}
+
+			//	Draft                       ..  DR/IP/IN
+			if (docStatus.equals(DocumentEngine.STATUS_InProgress))
+			{
+				options[index++] = DocumentEngine.ACTION_Prepare;
+			}
+		}
+		else if (AD_Table_ID == MCommission.Table_ID )
 		{
 			//	Complete                    ..  CO
 			if (docStatus.equals(DocumentEngine.STATUS_Completed))
