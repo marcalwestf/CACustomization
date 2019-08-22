@@ -1,8 +1,4 @@
-﻿-- Function: taxamt_notinvoiced(numeric)
-
--- DROP FUNCTION taxamt_notinvoiced(numeric);
-
-CREATE OR REPLACE FUNCTION taxamt_notinvoiced(p_c_orderline_id numeric)
+﻿CREATE OR REPLACE FUNCTION taxamt_notinvoiced(p_c_orderline_id numeric)
   RETURNS numeric AS
 $BODY$
 
@@ -30,7 +26,4 @@ BEGIN
 END;
 
 $BODY$
-  LANGUAGE plpgsql VOLATILE
-  COST 100;
-ALTER FUNCTION taxamt_notinvoiced(numeric)
-  OWNER TO adempiere;
+  LANGUAGE plpgsql;
