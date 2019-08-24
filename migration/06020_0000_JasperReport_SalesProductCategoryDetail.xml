@@ -22,7 +22,7 @@
         <Data AD_Column_ID="2813" Column="ProcedureName" isNewNull="true"/>
         <Data AD_Column_ID="63488" Column="AD_Browse_ID" isNewNull="true"/>
         <Data AD_Column_ID="6485" Column="EntityType">D</Data>
-        <Data AD_Column_ID="50182" Column="JasperReport">attachment:ProductCategoryDetail_ES.jasper</Data>
+        <Data AD_Column_ID="50182" Column="JasperReport">attachment:SalesProductCategoryDetail_ES.jasper</Data>
         <Data AD_Column_ID="2805" Column="Created">2019-08-22 15:50:02.832</Data>
         <Data AD_Column_ID="2807" Column="Updated">2019-08-22 15:50:02.832</Data>
         <Data AD_Column_ID="4214" Column="IsDirectPrint">false</Data>
