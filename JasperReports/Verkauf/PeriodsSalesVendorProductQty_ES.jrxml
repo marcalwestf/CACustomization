@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- Created with Jaspersoft Studio version 6.6.0.final using JasperReports Library version 6.6.0  -->
-<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="Ventas Proveedores Producto Cantidad" pageWidth="1190" pageHeight="842" orientation="Landscape" columnWidth="1130" leftMargin="30" rightMargin="30" topMargin="20" bottomMargin="20" uuid="02772633-40e7-4900-97d3-30cf4a7d32a4">
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="Periods Sales Vendor Product Quantity ES" pageWidth="1190" pageHeight="842" orientation="Landscape" columnWidth="1130" leftMargin="30" rightMargin="30" topMargin="20" bottomMargin="20" uuid="02772633-40e7-4900-97d3-30cf4a7d32a4">
 	<property name="ireport.scriptlethandling" value="0"/>
 	<property name="ireport.encoding" value="UTF-8"/>
 	<property name="ireport.zoom" value="2.0"/>
@@ -78,6 +78,9 @@
 	<parameter name="AD_CLIENT_ID" class="java.lang.Integer">
 		<defaultValueExpression><![CDATA[]]></defaultValueExpression>
 	</parameter>
+	<parameter name="C_BPartner_ID" class="java.math.BigDecimal">
+		<defaultValueExpression><![CDATA[]]></defaultValueExpression>
+	</parameter>
 	<queryString>
 		<![CDATA[SELECT bp.name as clientname, vnd.name as vendorname, p.name||'/'||uomtrl.name as productname,
 pertmp.periodname, i.Dateinvoiced, 
@@ -104,6 +107,7 @@ INNER JOIN C_BPartner vnd ON (ppo.C_BPartner_ID=vnd.C_BPartner_ID)
 
 WHERE i.ad_client_ID = $P{AD_CLIENT_ID}
 AND i.dateinvoiced BETWEEN $P{DateInvoiced1} AND $P{DateInvoiced2}
+AND (vnd.C_BPartner_ID=$P{C_BPartner_ID} OR $P{C_BPartner_ID} IS NULL)
 AND i.Docstatus IN ('CO' , 'CL')
 AND i.issotrx='Y']]>
 	</queryString>
