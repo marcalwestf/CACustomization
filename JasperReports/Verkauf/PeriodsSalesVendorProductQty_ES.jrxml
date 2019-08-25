@@ -82,11 +82,11 @@
 		<defaultValueExpression><![CDATA[]]></defaultValueExpression>
 	</parameter>
 	<queryString>
-		<![CDATA[SELECT bp.name as clientname, vnd.name as vendorname, p.name||'/'||uomtrl.name as productname,
+		<![CDATA[SELECT bp.name as clientname, vnd.name as vendorname, p.name||' ('||COALESCE(uomtrl.name, uom.name)||')' as productname,
 pertmp.periodname, i.Dateinvoiced, 
 il.qtyinvoiced,
 linenetamtrealinvoiceline(il.C_Invoiceline_ID) AS linenetamtreal,
-uomtrl.name as uomname
+COALESCE(uomtrl.name, uom.name) AS uomname
 FROM C_Invoice i
 INNER JOIN C_BPartner bp ON (i.C_BPartner_ID=bp.C_BPartner_ID)
 
@@ -100,7 +100,8 @@ INNER JOIN LATERAL (
 
 INNER JOIN C_Invoiceline il ON (i.C_Invoice_ID=il.C_Invoice_ID)
 INNER JOIN AD_Client cl ON (i.AD_Client_ID=cl.AD_Client_ID)
-INNER JOIN C_UOM_Trl uomtrl ON (il.C_UOM_ID=uomtrl.C_UOM_ID AND cl.AD_Language=uomtrl.AD_Language)
+INNER JOIN c_uom uom ON (il.c_uom_id = uom.c_uom_id)
+LEFT JOIN c_uom_trl uomtrl ON (uom.c_uom_id = uomtrl.c_uom_id AND cl.ad_language = uomtrl.ad_language)
 INNER JOIN M_Product p ON (il.M_Product_ID=p.M_Product_ID)
 LEFT JOIN M_Product_PO ppo ON (p.M_Product_ID=ppo.M_Product_ID AND ppo.iscurrentvendor='Y')
 INNER JOIN C_BPartner vnd ON (ppo.C_BPartner_ID=vnd.C_BPartner_ID)
