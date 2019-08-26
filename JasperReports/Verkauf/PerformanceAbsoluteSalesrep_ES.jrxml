@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- Created with Jaspersoft Studio version 6.6.0.final using JasperReports Library version 6.6.0  -->
-<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="PERFORMANCE_ABSOLUTE_PRODUCT" pageWidth="792" pageHeight="612" orientation="Landscape" columnWidth="732" leftMargin="30" rightMargin="30" topMargin="20" bottomMargin="20" uuid="e70a7326-4f06-451b-8701-db16debef0bf">
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="PERFORMANCE_ABSOLUTE_SALESREP ES" pageWidth="792" pageHeight="612" orientation="Landscape" columnWidth="732" leftMargin="30" rightMargin="30" topMargin="20" bottomMargin="20" uuid="e70a7326-4f06-451b-8701-db16debef0bf">
 	<property name="ireport.scriptlethandling" value="0"/>
 	<property name="ireport.encoding" value="UTF-8"/>
 	<property name="ireport.zoom" value="1.0"/>
@@ -8,7 +8,7 @@
 	<property name="ireport.y" value="0"/>
 	<property name="com.jaspersoft.studio.data.defaultdataadapter" value="DataAdapter_GEGASAPROD_localhost.xml"/>
 	<property name="com.jaspersoft.studio.data.sql.tables" value=""/>
-	<property name="com.jaspersoft.studio.report.description" value="Displays total sales and marges of products"/>
+	<property name="com.jaspersoft.studio.report.description" value="Displays total sales and marges for Sales Representatives"/>
 	<import value="net.sf.jasperreports.engine.*"/>
 	<import value="java.util.*"/>
 	<import value="net.sf.jasperreports.engine.data.*"/>
@@ -31,17 +31,17 @@ ELSE
 sum(linenetamtrealinvoiceline(ivl.c_invoiceline_id))- sum(cd.costamt) END 
 AS marge,
 sum(linenetamtrealinvoiceline(ivl.c_invoiceline_id)) AS sales , 
-p.name AS productname
+COALESCE(u.name, 'FALTA NOMBRE') AS salesrep
 
 FROM c_invoiceline ivl
 INNER JOIN c_invoice i ON ivl.c_invoice_ID = i.c_invoice_ID
-INNER JOIN m_product p ON ivl.m_product_ID = p.m_product_ID
+LEFT JOIN ad_user u ON i.salesrep_ID = u.ad_user_ID
 INNER JOIN m_inoutline iol  ON ivl.m_inoutline_ID = iol.m_inoutline_ID
 INNER join m_costdetail cd  ON iol.m_inoutline_ID = cd.m_inoutline_ID
 WHERE i.issotrx = 'Y' AND i.docstatus IN ('CO','CL') AND i.dateinvoiced > to_date('31-07-2010','dd-mm-yyyy')
 AND i.dateinvoiced BETWEEN $P{DateInvoiced1} AND $P{DateInvoiced2}
 AND i.ad_client_ID = $P{AD_CLIENT_ID}
-GROUP BY p.name]]>
+GROUP BY u.name]]>
 		</queryString>
 		<field name="marge" class="java.math.BigDecimal">
 			<property name="com.jaspersoft.studio.field.label" value="marge"/>
@@ -49,9 +49,9 @@ GROUP BY p.name]]>
 		<field name="sales" class="java.math.BigDecimal">
 			<property name="com.jaspersoft.studio.field.label" value="sales"/>
 		</field>
-		<field name="productname" class="java.lang.String">
-			<property name="com.jaspersoft.studio.field.label" value="productname"/>
-			<property name="com.jaspersoft.studio.field.tree.path" value="m_product"/>
+		<field name="salesrep" class="java.lang.String">
+			<property name="com.jaspersoft.studio.field.label" value="salesrep"/>
+			<property name="com.jaspersoft.studio.field.tree.path" value="ad_user"/>
 		</field>
 		<sortField name="sales" order="Descending"/>
 	</subDataset>
@@ -61,18 +61,18 @@ GROUP BY p.name]]>
 	<queryString>
 		<![CDATA[SELECT sum(linenetamtrealinvoiceline(ivl.c_invoiceline_id)- cd.costamt) AS marge,
 sum(linenetamtrealinvoiceline(ivl.c_invoiceline_id)) AS sales ,
- p.name AS productname,
+COALESCE(u.name, 'FALTA NOMBRE') AS salesrep,
 sum(cd.costamt) AS costs
 FROM c_invoiceline ivl
 INNER JOIN c_invoice i ON ivl.c_invoice_ID = i.c_invoice_ID
-INNER JOIN m_product p ON ivl.m_product_ID = p.m_product_ID
+LEFT JOIN ad_user u ON i.salesrep_ID = u.ad_user_ID
 INNER JOIN m_inoutline iol  ON ivl.m_inoutline_ID = iol.m_inoutline_ID
 INNER join m_costdetail cd  ON iol.m_inoutline_ID = cd.m_inoutline_ID
 WHERE i.issotrx = 'Y' AND i.docstatus IN ('CO','CL') 
 --AND i.dateinvoiced > to_date('31-07-2010','dd-mm-yyyy')
 AND i.dateinvoiced BETWEEN $P{DateInvoiced1} AND $P{DateInvoiced2}
 AND i.ad_client_ID = $P{AD_CLIENT_ID}
-GROUP BY p.name]]>
+GROUP BY u.name]]>
 	</queryString>
 	<field name="marge" class="java.math.BigDecimal">
 		<property name="com.jaspersoft.studio.field.label" value="marge"/>
@@ -80,9 +80,9 @@ GROUP BY p.name]]>
 	<field name="sales" class="java.math.BigDecimal">
 		<property name="com.jaspersoft.studio.field.label" value="sales"/>
 	</field>
-	<field name="productname" class="java.lang.String">
-		<property name="com.jaspersoft.studio.field.label" value="productname"/>
-		<property name="com.jaspersoft.studio.field.tree.path" value="m_product"/>
+	<field name="salesrep" class="java.lang.String">
+		<property name="com.jaspersoft.studio.field.label" value="salesrep"/>
+		<property name="com.jaspersoft.studio.field.tree.path" value="ad_user"/>
 	</field>
 	<field name="costs" class="java.math.BigDecimal">
 		<property name="com.jaspersoft.studio.field.label" value="costs"/>
@@ -163,7 +163,7 @@ GROUP BY p.name]]>
 				<textFieldExpression><![CDATA[$V{totalsales}]]></textFieldExpression>
 			</textField>
 			<frame>
-				<reportElement x="0" y="121" width="249" height="377" uuid="0436d48a-d8c1-438b-90c3-b5b37e74202a">
+				<reportElement x="0" y="122" width="249" height="377" uuid="0436d48a-d8c1-438b-90c3-b5b37e74202a">
 					<property name="com.jaspersoft.studio.unit.x" value="mm"/>
 					<property name="com.jaspersoft.studio.unit.width" value="mm"/>
 				</reportElement>
@@ -198,7 +198,7 @@ GROUP BY p.name]]>
 									<textElement verticalAlignment="Top">
 										<font size="8"/>
 									</textElement>
-									<textFieldExpression><![CDATA[$F{productname}]]></textFieldExpression>
+									<textFieldExpression><![CDATA[$F{salesrep}]]></textFieldExpression>
 								</textField>
 								<textField pattern="#,##0.00">
 									<reportElement x="130" y="0" width="58" height="20" uuid="4231068e-7eca-4381-84ea-3626d189b2bb"/>
@@ -220,17 +220,17 @@ GROUP BY p.name]]>
 				</frame>
 			</frame>
 			<staticText>
-				<reportElement x="0" y="101" width="132" height="20" uuid="1be875d2-0dfe-4b6a-8bf7-8c0ab96dccde"/>
+				<reportElement x="0" y="102" width="132" height="20" uuid="1be875d2-0dfe-4b6a-8bf7-8c0ab96dccde"/>
 				<box>
 					<topPen lineWidth="0.5"/>
 					<leftPen lineWidth="0.5"/>
 					<bottomPen lineWidth="0.5"/>
 				</box>
 				<textElement textAlignment="Center" verticalAlignment="Middle"/>
-				<text><![CDATA[Producto]]></text>
+				<text><![CDATA[Vendedor]]></text>
 			</staticText>
 			<staticText>
-				<reportElement x="132" y="101" width="60" height="20" uuid="707f45dd-8fd5-465b-94e2-5d4765ea307d"/>
+				<reportElement x="132" y="102" width="60" height="20" uuid="707f45dd-8fd5-465b-94e2-5d4765ea307d"/>
 				<box>
 					<topPen lineWidth="0.5"/>
 					<leftPen lineWidth="0.5"/>
@@ -243,7 +243,7 @@ GROUP BY p.name]]>
 				<text><![CDATA[Ventas]]></text>
 			</staticText>
 			<staticText>
-				<reportElement x="192" y="101" width="57" height="20" uuid="962bc17e-b174-4c4e-94e3-a198a99a9724"/>
+				<reportElement x="192" y="102" width="57" height="20" uuid="962bc17e-b174-4c4e-94e3-a198a99a9724"/>
 				<box>
 					<topPen lineWidth="0.5"/>
 					<leftPen lineWidth="0.5"/>
@@ -251,7 +251,7 @@ GROUP BY p.name]]>
 					<rightPen lineWidth="0.5"/>
 				</box>
 				<textElement textAlignment="Center" verticalAlignment="Middle">
-					<font size="9"/>
+					<font size="10"/>
 				</textElement>
 				<text><![CDATA[Ganancia]]></text>
 			</staticText>
@@ -269,7 +269,7 @@ GROUP BY p.name]]>
 					<chartLegend/>
 				</chart>
 				<pieDataset maxCount="6">
-					<keyExpression><![CDATA[$F{productname}]]></keyExpression>
+					<keyExpression><![CDATA[$F{salesrep}]]></keyExpression>
 					<valueExpression><![CDATA[$F{marge}]]></valueExpression>
 					<otherKeyExpression><![CDATA["Otros"]]></otherKeyExpression>
 				</pieDataset>
@@ -316,7 +316,7 @@ GROUP BY p.name]]>
 					<chartLegend/>
 				</chart>
 				<pieDataset maxCount="6">
-					<keyExpression><![CDATA[$F{productname}]]></keyExpression>
+					<keyExpression><![CDATA[$F{salesrep}]]></keyExpression>
 					<valueExpression><![CDATA[$F{sales}]]></valueExpression>
 				</pieDataset>
 				<pie3DPlot labelFormat="{0} {2}">
@@ -335,7 +335,7 @@ GROUP BY p.name]]>
 				<textElement textAlignment="Center" verticalAlignment="Middle">
 					<font size="12" isBold="true"/>
 				</textElement>
-				<text><![CDATA[Análisis de Resultado por Producto]]></text>
+				<text><![CDATA[Análisis de Resultado por Vendedor]]></text>
 			</staticText>
 			<staticText>
 				<reportElement x="100" y="24" width="38" height="11" uuid="343c04ff-637c-4227-be8e-57b3e6c08a66">
