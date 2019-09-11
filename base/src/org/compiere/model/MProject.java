@@ -814,7 +814,7 @@ public class MProject extends X_C_Project
 			set_ValueOfColumn("CostDiffExcecutionLL",  costDiffExcecutionLL.setScale(2, BigDecimal.ROUND_HALF_UP));
 
 			// Gross margin LL = extrapolated revenue LL - (extrapolated costs LL + resource issue costs LL + inventory issue costs LL)
-			grossMarginLL = grossMarginLL.add(revenueExtrapolatedLL).subtract(costExtrapolatedLL).
+			grossMarginLL = revenueExtrapolatedLL.subtract(costExtrapolatedLL).
 					subtract(costIssueResourceLL).subtract(costIssueInventoryLL);
 			if(grossMarginLL==null)
 				grossMarginLL = Env.ZERO;
