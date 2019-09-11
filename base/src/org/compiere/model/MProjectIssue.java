@@ -208,6 +208,12 @@ public class MProjectIssue extends X_C_ProjectIssue implements IDocumentLine, Do
 	}
 
 	@Override
+	public boolean isReversalParent() {
+		// TODO Auto-generated method stub
+		return false;
+	}
+
+	@Override
 	public boolean processIt(String processAction)  {
 		processMsg = null;
 		DocumentEngine engine = new DocumentEngine(this, getDocStatus());

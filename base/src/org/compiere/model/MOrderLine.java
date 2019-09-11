@@ -350,7 +350,7 @@ public class MOrderLine extends X_C_OrderLine implements IDocumentLine
 		int ii = Tax.get(getCtx(), getM_Product_ID(), getC_Charge_ID(), getDateOrdered(), getDateOrdered(),
 			getAD_Org_ID(), getM_Warehouse_ID(),
 			getC_BPartner_Location_ID(),		//	should be bill to
-			getC_BPartner_Location_ID(), m_IsSOTrx);
+			getC_BPartner_Location_ID(), m_IsSOTrx, get_TrxName());
 		if (ii == 0)
 		{
 			log.log(Level.SEVERE, "No Tax found");
@@ -456,7 +456,7 @@ public class MOrderLine extends X_C_OrderLine implements IDocumentLine
 			MCurrency cur = MCurrency.get(getCtx(), getC_Currency_ID());
 			if (cur.get_ID() != 0)
 			{
-				m_precision = cur.getCostingPrecision();
+				m_precision = new Integer (cur.getStdPrecision());
 				return m_precision.intValue();
 			}
 		}
@@ -1063,5 +1063,11 @@ public class MOrderLine extends X_C_OrderLine implements IDocumentLine
 	public int getC_ConversionType_ID()
 	{
 		return getParent().getC_ConversionType_ID();
+	}
+
+	@Override
+	public boolean isReversalParent() {
+		// TODO Auto-generated method stub
+		return getC_OrderLine_ID() < getReversalLine_ID();
 	}
 }	//	MOrderLine
