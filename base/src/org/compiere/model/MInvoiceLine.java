@@ -980,6 +980,8 @@ public class MInvoiceLine extends X_C_InvoiceLine implements DocumentReversalLin
 	{
 		//if (isProcessed())
 		//	return "Processed";
+		if (getParent().isProcessed())
+			MPeriod.testPeriodOpen(getCtx(), getParent().getDateAcct(), getParent().getC_DocTypeTarget_ID(), getAD_Org_ID());
 		MLandedCost[] lcs = MLandedCost.getLandedCosts(this);
 		if (lcs.length == 0)
 			return "";
