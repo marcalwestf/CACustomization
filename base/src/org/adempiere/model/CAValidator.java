@@ -18,9 +18,12 @@ package org.adempiere.model;
 
 
 import java.math.BigDecimal;
+import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Calendar;
+import java.util.GregorianCalendar;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
@@ -35,7 +38,6 @@ import org.compiere.model.MBPartner;
 import org.compiere.model.MBankAccount;
 import org.compiere.model.MBankStatement;
 import org.compiere.model.MBankStatementLine;
-import org.compiere.model.MCharge;
 import org.compiere.model.MClient;
 import org.compiere.model.MCommissionAmt;
 import org.compiere.model.MCommissionDetail;
@@ -55,8 +57,6 @@ import org.compiere.model.MPaySelectionCheck;
 import org.compiere.model.MPaySelectionLine;
 import org.compiere.model.MPayment;
 import org.compiere.model.MPaymentBatch;
-import org.compiere.model.MPaymentTerm;
-import org.compiere.model.MProduct;
 import org.compiere.model.MProduction;
 import org.compiere.model.MProject;
 import org.compiere.model.MProjectIssue;
@@ -71,9 +71,12 @@ import org.compiere.model.PO;
 import org.compiere.model.Query;
 import org.compiere.model.X_C_Payment;
 import org.compiere.process.DocAction;
+import org.compiere.sqlj.Adempiere;
 import org.compiere.util.CLogger;
 import org.compiere.util.DB;
 import org.compiere.util.Env;
+import org.compiere.util.Language;
+import org.compiere.util.TimeUtil;
 import org.eevolution.model.MDDOrder;
 import org.eevolution.model.MHRAttribute;
 import org.eevolution.model.MHRConcept;
@@ -156,9 +159,13 @@ public class CAValidator implements ModelValidator
 	{
 		String error = "";
 		log.info(po.get_TableName() + " Type: "+type);
+		
 		if (type == ModelValidator.TYPE_BEFORE_NEW || type == ModelValidator.TYPE_BEFORE_CHANGE ){
-			if (po.get_TableName().equals(MOrder.Table_Name))
+			if (po.get_TableName().equals(MOrder.Table_Name)) {
 				error = User4Mandatory(po);
+				if (po.is_ValueChanged(MOrder.COLUMNNAME_C_BPartner_ID))
+					error = upDateControlCredito(po);
+			}
 			if(po.get_TableName().equals(MInvoice.Table_Name))
 				error = InvoiceTypeTaxDeclaration(po);		
 			if (po.get_TableName().equals(MTimeExpenseLine.Table_Name))
@@ -166,6 +173,9 @@ public class CAValidator implements ModelValidator
 			if (po.get_TableName().equals(MOrderLine.Table_Name)
 					&& (po.is_ValueChanged("M_Product_ID") || po.is_ValueChanged("C_Charge_ID")))
 				error = setOrderLineTax(po);
+			if (po.get_TableName().equals(MOrderLine.Table_Name))
+				error = updatePriceLimitControl(po);
+			
 
 			if (po.get_TableName().equals(MInvoiceLine.Table_Name)
 					&& (po.is_ValueChanged("M_Product_ID") || po.is_ValueChanged("C_Charge_ID")))
@@ -231,6 +241,116 @@ public class CAValidator implements ModelValidator
 				orderLine.saveEx();            
 			}
 		}
+		
+		return "";
+	}
+	
+	private String AfterPrepareIsControlLimitPrice(PO po) {   
+		String result = "";
+		MOrder order = (MOrder)po;
+		if (!order.isSOTrx())
+			return result;
+		
+		StringBuffer sqlRole = new StringBuffer();
+		sqlRole.append("SELECT count(*) FROM AD_Role r  WHERE r.IsActive='Y' ");
+		sqlRole.append("	AND EXISTS (SELECT * FROM AD_User_Roles ur");
+		sqlRole.append("	WHERE r.AD_Role_ID=ur.AD_Role_ID AND ur.IsActive='Y' AND ur.AD_User_ID=?) ");
+		sqlRole.append("	AND r.overwritepricelimit = 'Y' ");
+		int noRole = DB.getSQLValueEx(order.get_TrxName(), sqlRole.toString(), Env.getAD_User_ID(order.getCtx()));
+		if (noRole>0) {
+			order.set_ValueOfColumn("isControlLimitPrice", false);
+			order.set_ValueOfColumn("limitPriceApprovedBy", Env.getAD_User_ID(order.getCtx()));
+			order.saveEx();
+			return result;			
+		}
+		if (order.get_ValueAsBoolean("isControlLimitPrice"))
+			result = "Excede Limite de Precio";
+		return result;
+	}
+	
+	private String updatePriceLimitControl(PO po) {	
+		MOrderLine orderLine = (MOrderLine)po;
+		if (!orderLine.getParent().isSOTrx())
+			return "";	
+		if(orderLine.is_ValueChanged(MOrderLine.COLUMNNAME_PriceEntered)) {
+			if (orderLine.getPriceActual().compareTo(orderLine.getPriceLimit())< 0) {
+				orderLine.set_ValueOfColumn("isControlLimitPrice", true);
+				orderLine.getParent().set_ValueOfColumn("isControlLimitPrice", true);
+				orderLine.getParent().saveEx();			
+			}				
+		}
+		if (orderLine.is_ValueChanged(MOrderLine.COLUMNNAME_LineNetAmt)) {
+			if (orderLine.getLineNetAmt().compareTo(Env.ZERO)<= 0)
+				return "";
+			MBPartner bPartner = (MBPartner)orderLine.getParent().getC_BPartner();			
+			BigDecimal creditUsed = bPartner.getSO_CreditUsed().add(orderLine.getParent().getGrandTotal());
+			if (bPartner.getSO_CreditLimit().compareTo(Env.ZERO)!= 0 &&   creditUsed.compareTo(bPartner.getSO_CreditLimit())>0) {
+				orderLine.getParent().set_ValueOfColumn("DocStatus_RejectStatus", "CL");	
+				orderLine.getParent().saveEx();		
+		}
+		}
+		return "";
+	}
+	
+	private String AfterPrepareOrderControlCreditStop(PO po) {  
+		MOrder order = (MOrder)po;
+		String result = "";
+		if (!order.isSOTrx())
+			return result;
+		
+		StringBuffer sqlRole = new StringBuffer();
+		sqlRole.append("SELECT count(*) FROM AD_Role r  WHERE r.IsActive='Y' ");
+		sqlRole.append("	AND EXISTS (SELECT * FROM AD_User_Roles ur");
+		sqlRole.append("	WHERE r.AD_Role_ID=ur.AD_Role_ID AND ur.IsActive='Y' AND ur.AD_User_ID=?) ");
+		sqlRole.append("	AND r.iscanapprovecreditlimit = 'Y' ");
+		int noRole = DB.getSQLValueEx(order.get_TrxName(), sqlRole.toString(), Env.getAD_User_ID(order.getCtx()));
+		if (noRole>0) {
+			return result;	
+			}
+		
+		if(order.get_ValueAsString("DocStatus_RejectStatus").equals("NO")) {
+			result = "Aprobar Credito";
+		}
+		return result;
+	}
+	
+	private String upDateControlCredito(PO po) {
+		
+		MOrder order = (MOrder)po;
+		if (!order.isSOTrx())
+			return "";
+		if(order.is_ValueChanged(MOrder.COLUMNNAME_C_BPartner_ID)) {
+			String sql = "select count(*) from rv_OpenItem oi " + 
+					" INNER JOIN C_Paymentterm pt on oi.c_Paymentterm_ID=pt.c_Paymentterm_ID " + 
+					" WHERE IsSotrx = 'Y' and C_BPartner_ID=? " + 
+					" AND daysDue > pt.netdays";
+			int noInvoicesDue = DB.getSQLValueEx(order.get_TrxName(), sql, order.getC_BPartner_ID());
+			order.set_ValueOfColumn("ISpastDueInvoices", noInvoicesDue>0?true:false);
+			if (noInvoicesDue>0){
+				order.set_ValueOfColumn("DocStatus_RejectStatus", "CL");
+			}
+		}
+		if(order.is_ValueChanged(MOrder.COLUMNNAME_DateOrdered)) {
+			if ( (order.getC_DocTypeTarget().getDocSubTypeSO().equals(MDocType.DOCSUBTYPESO_StandardOrder)
+				|| order.getC_DocTypeTarget().getDocSubTypeSO().equals(MDocType.DOCSUBTYPESO_Proposal)
+				|| order.getC_DocTypeTarget().getDocSubTypeSO().equals(MDocType.DOCSUBTYPESO_Quotation)))
+				return"";
+			Timestamp datePromised = order.getDatePromised();
+			GregorianCalendar cal = new GregorianCalendar(Language.getLoginLanguage().getLocale());
+				cal.setTimeInMillis(datePromised.getTime());
+				cal.add(Calendar.DAY_OF_YEAR, +3);	//	next
+				cal.set(Calendar.HOUR_OF_DAY, 0);
+				cal.set(Calendar.MINUTE, 0);
+				cal.set(Calendar.SECOND, 0);
+				cal.set(Calendar.MILLISECOND, 0);
+			try {
+				datePromised = Adempiere.nextBusinessDay(datePromised);
+			} catch (SQLException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			order.setDatePromised(datePromised);
+		}
 		return "";
 	}
 	
@@ -274,7 +394,7 @@ public class CAValidator implements ModelValidator
 	
 	private String updateInvoiceLines(PO po) { 
 		MInvoice invoice = (MInvoice)po;
-		if(invoice.is_ValueChanged("User4_ID"))
+		if(invoice.is_ValueChanged("User4_ID")) 
 		{
 			for(MInvoiceLine invoiceLine:invoice.getLines()) 
 			{
@@ -364,7 +484,7 @@ public class CAValidator implements ModelValidator
 		
 		AtomicInteger lastDocumentNo = new AtomicInteger();
 		List<MPaySelectionCheck> paySelectionChecks = MPaySelectionCheck.get(po.getCtx(), po.get_ID(), po.get_TrxName());
-		paySelectionChecks.stream().filter(psc -> psc != null).forEach(paySelectionCheck ->
+		paySelectionChecks.stream().filter(psc -> psc != null && !psc.getPaymentRule().equals(MPaySelectionCheck.PAYMENTRULE_Check)).forEach(paySelectionCheck ->
 		{
 			MPayment payment = new MPayment(paySelectionCheck.getCtx(), paySelectionCheck.getC_Payment_ID(), paySelectionCheck.get_TrxName());
 			//	Existing Payment
@@ -557,6 +677,9 @@ public class CAValidator implements ModelValidator
         	}
         	if (po instanceof MOrder) {
         		error = OrderSetPrecision(po);
+        		error = AfterPrepareIsControlLimitPrice(po);
+        		if (error.isEmpty())
+        			error = AfterPrepareOrderControlCreditStop(po);
         	}
         	if (po instanceof MInvoice) {
         		error = InvoiceSetPrecision(po);
