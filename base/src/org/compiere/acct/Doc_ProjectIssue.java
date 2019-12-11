@@ -74,11 +74,13 @@ public class Doc_ProjectIssue extends Doc
 		//	Pseudo Line
 		m_line = new DocLine (m_issue, this); 
 		m_line.setQty (m_issue.getMovementQty(), true);    //  sets Trx and Storage Qty
+		m_line.setReversalLine_ID(m_issue.getReversalLine_ID());	
 		
 		//	Pseudo Line Check
 		if (m_line.getM_Product_ID() == 0)
 			log.warning(m_line.toString() + " - No Product");
 		log.fine(m_line.toString());
+		
 		return null;
 	}   //  loadDocumentDetails
 
@@ -136,7 +138,13 @@ public class Doc_ProjectIssue extends Doc
 		BigDecimal total = Env.ZERO;
 		if (m_issue.getM_InOutLine_ID() != 0) {
 
-			costs = getPOCost(as);
+			/*
+			 * for (MCostDetail cost : m_line.getCostDetail(as, true)) { if
+			 * (!MCostDetail.existsCost(cost)) continue;
+			 * 
+			 * costs = MCostDetail.getTotalCost(cost, as); total = total.add(costs); }
+			 */
+			costs = getPOCost(as).multiply(m_issue.getMovementQty());
 			total = costs;
 		}
 		else if (m_issue.getS_TimeExpenseLine_ID() != 0) {
@@ -201,7 +209,7 @@ public class Doc_ProjectIssue extends Doc
 		if (MProject.PROJECTCATEGORY_AssetProject.equals(ProjectCategory))
 			acctType = ACCTTYPE_ProjectAsset;
 		debitLine = fact.createLine(m_line,
-			getAccount(acctType, as), as.getC_Currency_ID(), costs, null);
+			getAccount(acctType, as), as.getC_Currency_ID(), total, null);
 		debitLine.setQty(m_line.getQty().negate());
 		
 		//  Inventory               CR
@@ -210,7 +218,7 @@ public class Doc_ProjectIssue extends Doc
 			acctType = ProductCost.ACCTTYPE_P_Expense;
 		creditLine = fact.createLine(m_line,
 			m_line.getAccount(acctType,as),
-			as.getC_Currency_ID(), null, costs);
+			as.getC_Currency_ID(), null, total);
 		creditLine.setM_Locator_ID(m_line.getM_Locator_ID());
 		creditLine.setLocationFromLocator(m_line.getM_Locator_ID(), true);	// from Loc
 		//
