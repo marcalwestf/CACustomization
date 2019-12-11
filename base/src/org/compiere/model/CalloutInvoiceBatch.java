@@ -57,6 +57,8 @@ public class CalloutInvoiceBatch extends CalloutEngine
 	 */
 	public String date (Properties ctx, int WindowNo, GridTab mTab, GridField mField, Object value)
 	{
+		if (Env.getContext(ctx, WindowNo, "IsQuedan").equals("Y"))
+			return"";//	
 		if (value == null)
 			return "";
 		mTab.setValue ("DateAcct", value);
@@ -82,6 +84,8 @@ public class CalloutInvoiceBatch extends CalloutEngine
 	 */
 	public String bPartner (Properties ctx, int WindowNo, GridTab mTab, GridField mField, Object value)
 	{
+		if (Env.getContext(ctx, WindowNo, "IsQuedan").equals("Y"))
+				return"";//	
 		Integer C_BPartner_ID = (Integer)value;
 		if (C_BPartner_ID == null || C_BPartner_ID.intValue() == 0)
 			return "";
@@ -193,6 +197,8 @@ public class CalloutInvoiceBatch extends CalloutEngine
 	 */
 	public String docType (Properties ctx, int WindowNo, GridTab mTab, GridField mField, Object value)
 	{
+		if (Env.getContext(ctx, WindowNo, "IsQuedan").equals("Y"))
+			return"";//	
 		setDocumentNo(ctx, WindowNo, mTab);
 		return "";
 	}	//	docType
@@ -251,6 +257,9 @@ public class CalloutInvoiceBatch extends CalloutEngine
 	 */
 	public String charge (Properties ctx, int WindowNo, GridTab mTab, GridField mField, Object value)
 	{
+
+		if (Env.getContext(ctx, WindowNo, "IsQuedan").equals("Y"))
+				return"";//	
 		Integer C_Charge_ID = (Integer)value;
 		if (C_Charge_ID == null || C_Charge_ID.intValue() == 0)
 			return "";
@@ -297,6 +306,8 @@ public class CalloutInvoiceBatch extends CalloutEngine
 	 */
 	public String tax (Properties ctx, int WindowNo, GridTab mTab, GridField mField, Object value)
 	{
+		if (Env.getContext(ctx, WindowNo, "IsQuedan").equals("Y"))
+			return"";//	
 		String column = mField.getColumnName();
 		if (value == null)
 			return "";
