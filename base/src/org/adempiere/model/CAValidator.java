@@ -82,6 +82,7 @@ import org.eevolution.model.MHRAttribute;
 import org.eevolution.model.MHRConcept;
 import org.eevolution.model.MHREmployee;
 import org.eevolution.model.MPPOrder;
+import org.eevolution.model.MWMInOutBoundLine;
 import org.eevolution.model.X_C_TaxDefinition;
 
 
@@ -126,6 +127,7 @@ public class CAValidator implements ModelValidator
 		engine.addModelChange(MInvoiceLine.Table_Name, this);
 		engine.addModelChange(MCommissionDetail.Table_Name, this);
 		engine.addModelChange(MTimeExpenseLine.Table_Name, this);
+		engine.addModelChange(MWMInOutBoundLine.Table_Name, this);
 		//engine.addModelChange(MTaxDeclarationLine.Table_Name, this);
 		
 		engine.addDocValidate(MPaySelection.Table_Name	, this);
@@ -140,6 +142,7 @@ public class CAValidator implements ModelValidator
 		engine.addDocValidate(MProduction.Table_Name, this);
 		engine.addDocValidate(MAllocationHdr.Table_Name, this);
 		engine.addDocValidate(MInOut.Table_Name, this);
+		
 		
 		//	Documents to be monitored
 	//	engine.addDocValidate(MInvoice.Table_Name, this);
@@ -180,6 +183,10 @@ public class CAValidator implements ModelValidator
 			if (po.get_TableName().equals(MInvoiceLine.Table_Name)
 					&& (po.is_ValueChanged("M_Product_ID") || po.is_ValueChanged("C_Charge_ID")))
 				error = setInvoiceLineTax(po);
+			 if (po.get_TableName().equals(MWMInOutBoundLine.Table_Name)) {
+				 error = updateM_Locator_TO(po);
+				 
+			 }
 			//if (po.get_TableName().equals(MTaxDeclarationLine.Table_Name) && type == ModelValidator.TYPE_BEFORE_NEW)
 			//	error = updateTaxDeclarationLIne(po);
 		}
@@ -212,6 +219,14 @@ public class CAValidator implements ModelValidator
 	}
 	
 
+	private String updateM_Locator_TO(PO po) {
+		MWMInOutBoundLine inOutBoundLine = (MWMInOutBoundLine)po;
+		if(inOutBoundLine.getM_LocatorTo_ID() <=0)
+			inOutBoundLine.setM_LocatorTo_ID(inOutBoundLine.getWM_InOutBound().getM_Locator_ID());
+		
+		return "";
+	}
+	
 	private String UpdatePaymentRule(PO po) {
 		MOrder order = (MOrder)po;
 		if(order.getC_DocTypeTarget().getDocSubTypeSO().equals(MDocType.DOCSUBTYPESO_POSOrder))
