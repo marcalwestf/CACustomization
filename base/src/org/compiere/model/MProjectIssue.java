@@ -209,8 +209,7 @@ public class MProjectIssue extends X_C_ProjectIssue implements IDocumentLine, Do
 
 	@Override
 	public boolean isReversalParent() {
-		// TODO Auto-generated method stub
-		return false;
+		return getC_ProjectIssue_ID() < getReversalLine_ID();
 	}
 
 	@Override
