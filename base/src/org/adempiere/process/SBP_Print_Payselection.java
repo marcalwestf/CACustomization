@@ -23,6 +23,7 @@ import java.math.BigDecimal;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -37,12 +38,16 @@ import org.adempiere.webui.session.SessionManager;
 import org.adempiere.webui.window.FDialog;
 import org.adempiere.webui.window.SimplePDFViewer;
 import org.compiere.model.MAllocationLine;
+import org.compiere.model.MBankAccount;
+import org.compiere.model.MDocType;
 import org.compiere.model.MPaySelection;
 import org.compiere.model.MPaySelectionCheck;
+import org.compiere.model.MPayment;
 import org.compiere.model.MPaymentBatch;
 import org.compiere.model.PO;
 import org.compiere.model.Query;
 import org.compiere.print.ServerReportCtl;
+import org.compiere.process.DocAction;
 import org.compiere.print.ReportEngine;
 import org.compiere.util.DB;
 import org.compiere.util.Env;
@@ -50,6 +55,7 @@ import org.compiere.util.Ini;
 import org.compiere.util.Msg;
 import org.compiere.util.PaymentExport;
 import org.compiere.util.PaymentExportList;
+import org.compiere.util.Util;
 import org.eevolution.model.MWMInOutBoundLine;
 import org.zkoss.zul.Filedownload;
 
@@ -64,6 +70,8 @@ public class SBP_Print_Payselection extends SBP_Print_PayselectionAbstract
 	private List<MPaySelectionCheck> paySelectionChecksToProcess = null;
 	private int paySelectionId = 0;
 	private MPaySelection paySelection = null;
+	
+	private List<MPayment>	paymentList					= new ArrayList<MPayment>();
 	@Override
 	protected void prepare()
 	{
@@ -84,6 +92,8 @@ public class SBP_Print_Payselection extends SBP_Print_PayselectionAbstract
 			cmd_export();
 		else if (getPayPrint().equals("EFT"))
 			cmd_EFT();
+		else if (getPayPrint().equals("CC"))
+			cmd_CreateReceipt();
 		return "";
 	}
 	
@@ -506,7 +516,67 @@ private void addPDFFile(File file)
 			pstmt = null;
 		}
 	}   //  cmd_export
+	
+	private void cmd_CreateReceipt() {
+		MPaySelectionCheck.confirmPrint(paySelectionChecks, null);		
+		for (MPaySelectionCheck paySelectionCheck: paySelectionChecks) {
+			MPayment payment = (MPayment)paySelectionCheck.getC_Payment();
+			payment.setCheckNo(paySelectionCheck.get_ValueAsString(MPayment.COLUMNNAME_CheckNo));
+			payment.saveEx();
+			if (isisCreateDeposit()){
+				MPayment receiptReference = payment;
+				int	bankAccountFromId = receiptReference.getC_BankAccount_ID();
+				MPayment inPayment = createPayment(receiptReference.getDocumentNo(), getBankAccountId(), true, 
+						receiptReference.getPayAmt(), receiptReference.getTenderType(),receiptReference.getDateTrx());
+				inPayment.setPayAmt(receiptReference.getPayAmt());
+				//	Set Reference
+				receiptReference.setRef_Payment_ID(inPayment.getC_Payment_ID());
+				receiptReference.saveEx();
+				Boolean isPaymentCreated = true;
+				//	Create out payment
+				MPayment outPayment = createPayment(receiptReference.getDocumentNo().concat(" Salida"), bankAccountFromId, false, 
+						receiptReference.getPayAmt(), receiptReference.getTenderType(), receiptReference.getDateTrx());
 
+				//	If is created a in payment then set reference here
+				if(isPaymentCreated
+						&& outPayment != null) {
+					inPayment.setRef_Payment_ID(outPayment.getC_Payment_ID());
+					inPayment.saveEx();
+				}
+
+				//	Complete Payments
+				for(MPayment newpayment : paymentList) {
+					newpayment.processIt(DocAction.ACTION_Complete);
+					newpayment.saveEx();			
+				}
+			} 
+		}
+	}
+	private MPayment createPayment(String documentNo, int bankAccountId, boolean isReceipt, BigDecimal payAmt, String tenderType, Timestamp dateTrx) {
+		MBankAccount bankAccount = MBankAccount.get(getCtx(), bankAccountId);
+		MPayment payment = new MPayment(getCtx(), 0, get_TrxName());
+	  	//	Set Value
+		payment.setC_BPartner_ID(getBPartnerId());
+		payment.setC_BankAccount_ID(bankAccountId);
+		payment.setIsReceipt(isReceipt);
+		payment.setTenderType(tenderType);
+		payment.setDateTrx(dateTrx);
+		payment.setDateAcct(dateTrx);
+		if(!Util.isEmpty(documentNo)) {
+			payment.setDocumentNo(documentNo);
+		}
+		payment.setC_Currency_ID(bankAccount.getC_Currency_ID());
+		payment.setC_Charge_ID(getChargeId());
+		payment.setDocStatus(MPayment.DOCSTATUS_Drafted);
+		if(payAmt != null) 
+			payment.setPayAmt(payAmt);
+		payment.setC_DocType_ID(isReceipt);
+		payment.saveEx();
+  	  	//	payment list
+  	  	paymentList.add(payment);
+		return payment;
+	
+	}
 	
 	
 	

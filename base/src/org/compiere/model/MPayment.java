@@ -2134,8 +2134,10 @@ public final class MPayment extends X_C_Payment
 			+ " psl.PayAmt, psl.DiscountAmt, psl.DifferenceAmt, psl.OpenAmt "
 			+ "FROM C_PaySelectionLine psl"
 			+ " INNER JOIN C_PaySelectionCheck psc ON (psl.C_PaySelectionCheck_ID=psc.C_PaySelectionCheck_ID) "
+			+ " INNER JOIN C_Payment p ON (psc.c_Payment_ID=p.C_Payment_ID) "
 			//	Validate if have invoice
-			+ "WHERE psc.C_Payment_ID=? AND psl.C_Invoice_ID IS NOT NULL";
+			+ "WHERE psc.C_Payment_ID=? AND psl.C_Invoice_ID IS NOT NULL "
+			+ " AND (p.isreceipt = 'N' OR (p.isreceipt = 'Y' and psc.paymentrule<>'S'))" ;
 		PreparedStatement pstmt = null;
 		ResultSet rs = null;
 		try
