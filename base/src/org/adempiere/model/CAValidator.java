@@ -288,11 +288,11 @@ public class CAValidator implements ModelValidator
 		if (!orderLine.getParent().isSOTrx())
 			return "";	
 		if(orderLine.is_ValueChanged(MOrderLine.COLUMNNAME_PriceEntered)) {
-			if (orderLine.getPriceActual().compareTo(orderLine.getPriceLimit())< 0) {
-				orderLine.set_ValueOfColumn("isControlLimitPrice", true);
-				orderLine.getParent().set_ValueOfColumn("isControlLimitPrice", true);
+		Boolean controlPriceLimit =	orderLine.getPriceActual().compareTo(orderLine.getPriceLimit())< 0?true:false;			
+				orderLine.set_ValueOfColumn("isControlLimitPrice", controlPriceLimit);
+				orderLine.getParent().set_ValueOfColumn("isControlLimitPrice", controlPriceLimit);
 				orderLine.getParent().saveEx();			
-			}				
+							
 		}
 		if (orderLine.is_ValueChanged(MOrderLine.COLUMNNAME_LineNetAmt)) {
 			if (orderLine.getLineNetAmt().compareTo(Env.ZERO)<= 0)
@@ -499,7 +499,10 @@ public class CAValidator implements ModelValidator
 		
 		AtomicInteger lastDocumentNo = new AtomicInteger();
 		List<MPaySelectionCheck> paySelectionChecks = MPaySelectionCheck.get(po.getCtx(), po.get_ID(), po.get_TrxName());
-		paySelectionChecks.stream().filter(psc -> psc != null && !psc.getPaymentRule().equals(MPaySelectionCheck.PAYMENTRULE_Check)).forEach(paySelectionCheck ->
+		//paySelectionChecks.stream().filter(psc -> psc != null && 
+			//	!psc.getPaymentRule().equals(MPaySelectionCheck.PAYMENTRULE_Check))
+		//.forEach(paySelectionCheck ->
+		for (MPaySelectionCheck paySelectionCheck:paySelectionChecks)
 		{
 			MPayment payment = new MPayment(paySelectionCheck.getCtx(), paySelectionCheck.getC_Payment_ID(), paySelectionCheck.get_TrxName());
 			//	Existing Payment
@@ -515,6 +518,20 @@ public class CAValidator implements ModelValidator
 				}
 			} else {	//	New Payment
 				I_C_PaySelection paySelection =  paySelectionCheck.getC_PaySelection();
+
+				Boolean payInmediate = true;
+				if (paySelection.getC_DocType().isSOTrx()) {
+					//String TransactionCode = paySelectionCheck.get_ValueAsString("TransactionCode");
+					//if (paySelectionCheck.getPaymentRule().equals(MPaySelectionCheck.PAYMENTRULE_Check) && TransactionCode.length()>0)
+						payInmediate = true;
+				}
+				else {
+					if ((paySelectionCheck.getPaymentRule().equals(MPaySelectionCheck.PAYMENTRULE_Check) ) ||
+							paySelectionCheck.getPaymentRule().equals(MPaySelectionCheck.PAYMENTRULE_DirectDeposit))
+						payInmediate = false;
+				}
+				if (!payInmediate)
+					continue;
 				MDocType documentType = MDocType.get(paySelectionCheck.getCtx(), paySelection.getC_DocType_ID());
 				int docTypeId = documentType.getC_DocTypePayment_ID();
 				//	
@@ -635,7 +652,8 @@ public class CAValidator implements ModelValidator
 			paySelectionCheck.setIsPrinted(true);
 			paySelectionCheck.setProcessed(true);
 			paySelectionCheck.saveEx();
-		});	//	all checks
+		}
+		//);	//	all checks
 
 		//logger.fine("Last Document No = " + lastDocumentNo.get());
 		return "";
@@ -687,8 +705,8 @@ public class CAValidator implements ModelValidator
         }
         if (ModelValidator.TIMING_AFTER_PREPARE == timing) {
         	if (po instanceof MBankStatement) {
-        		error = bs_AfterPrepare(po);
-        		error = bs_AfterPrepare_CreatePayment(po);
+        		//error = bs_AfterPrepare(po);
+        		//error = bs_AfterPrepare_CreatePayment(po);
         	}
         	if (po instanceof MOrder) {
         		error = OrderSetPrecision(po);
@@ -925,8 +943,12 @@ public class CAValidator implements ModelValidator
 		//	Find/Create Project Line
 		//	Find/Create Project Line
 		MProjectLine projectLine = new MProjectLine(project);
-		projectLine.setMProjectIssue(projectIssue);		//	setIssue
-		projectLine.setCommittedAmt(timeExpenseLine.getConvertedAmt().add(timeExpenseLine.getPriceReimbursed()));
+		projectLine.setMProjectIssue(projectIssue);		//	setIssueBigDecimal feeAmt = (BigDecimal)expenseLine.get_Value("FeeAmt");
+		BigDecimal travelCost =  (BigDecimal)timeExpenseLine.get_Value("TravelCost");
+		BigDecimal prepaymentAmt =  (BigDecimal)timeExpenseLine.get_Value("PrepaymentAmt");
+		BigDecimal feeAmt = (BigDecimal)timeExpenseLine.get_Value("FeeAmt");
+		//projectLine.setCommittedAmt(timeExpenseLine.getConvertedAmt().add(timeExpenseLine.getPriceReimbursed()));
+		projectLine.setCommittedAmt(timeExpenseLine.getConvertedAmt().add(feeAmt).add(prepaymentAmt).add(travelCost));
 		projectLine.setM_Product_ID(projectIssue.getM_Product_ID());
 		projectLine.set_ValueOfColumn(MTimeExpenseLine.COLUMNNAME_S_TimeExpenseLine_ID, projectIssue.getS_TimeExpenseLine_ID());
 		projectLine.saveEx();
