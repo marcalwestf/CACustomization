@@ -291,18 +291,8 @@ public class CAValidator implements ModelValidator
 		Boolean controlPriceLimit =	orderLine.getPriceActual().compareTo(orderLine.getPriceLimit())< 0?true:false;			
 				orderLine.set_ValueOfColumn("isControlLimitPrice", controlPriceLimit);
 				orderLine.getParent().set_ValueOfColumn("isControlLimitPrice", controlPriceLimit);
-				orderLine.getParent().saveEx();			
-							
-		}
-		if (orderLine.is_ValueChanged(MOrderLine.COLUMNNAME_LineNetAmt)) {
-			if (orderLine.getLineNetAmt().compareTo(Env.ZERO)<= 0)
-				return "";
-			MBPartner bPartner = (MBPartner)orderLine.getParent().getC_BPartner();			
-			BigDecimal creditUsed = bPartner.getSO_CreditUsed().add(orderLine.getParent().getGrandTotal());
-			if (bPartner.getSO_CreditLimit().compareTo(Env.ZERO)!= 0 &&   creditUsed.compareTo(bPartner.getSO_CreditLimit())>0) {
-				orderLine.getParent().set_ValueOfColumn("DocStatus_RejectStatus", "CL");	
 				orderLine.getParent().saveEx();		
-		}
+							
 		}
 		return "";
 	}
@@ -537,8 +527,13 @@ public class CAValidator implements ModelValidator
 				//	
 				payment = new MPayment(paySelectionCheck.getCtx(), 0, paySelectionCheck.get_TrxName());
 				payment.setAD_Org_ID(paySelectionCheck.getAD_Org_ID());
-				if (paySelectionCheck.getPaymentRule().equals(MPaySelectionCheck.PAYMENTRULE_Check)) {
+				if (paySelectionCheck.getPaymentRule().equals(MPaySelectionCheck.PAYMENTRULE_Check)
+						|| paySelectionCheck.getPaymentRule().equals(MPaySelectionCheck.PAYMENTRULE_Cash)) {
 					payment.setBankCheck (paySelectionCheck.getParent().getC_BankAccount_ID(), false, paySelectionCheck.getDocumentNo());
+					payment.setCheckNo(paySelectionCheck.get_ValueAsString("CheckNo"));
+					payment.setVoiceAuthCode(paySelectionCheck.get_ValueAsString("TransactionCode"));
+					if (paySelectionCheck.getPaymentRule().equals(MPaySelectionCheck.PAYMENTRULE_Cash))
+						payment.setTenderType(MPayment.TENDERTYPE_Cash);
 				} else if (paySelectionCheck.getPaymentRule().equals(MPaySelectionCheck.PAYMENTRULE_CreditCard)) {
 					payment.setTenderType(X_C_Payment.TENDERTYPE_CreditCard);
 				} else if (paySelectionCheck.getPaymentRule().equals(MPaySelectionCheck.PAYMENTRULE_DirectDeposit)
