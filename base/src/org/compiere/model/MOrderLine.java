@@ -29,6 +29,7 @@ import org.compiere.util.CLogger;
 import org.compiere.util.DB;
 import org.compiere.util.Env;
 import org.compiere.util.Msg;
+import org.compiere.util.Util;
 
 /**
  *  Order Line Model.
@@ -777,9 +778,12 @@ public class MOrderLine extends X_C_OrderLine implements IDocumentLine
 			//	Check if on Price list
 			if (m_productPrice == null)
 				getProductPricing(m_M_PriceList_ID);
-			if (!m_productPrice.isCalculated())
-			{
-				throw new ProductNotOnPriceListException(m_productPrice, getLine());
+			if (!m_productPrice.isCalculated()) {
+				MDocType documentType = MDocType.get(getCtx(), getParent().getC_DocTypeTarget_ID());
+				if(Util.isEmpty(documentType.getDocSubTypeSO())
+						|| !documentType.getDocSubTypeSO().equals(MDocType.DOCSUBTYPESO_ReturnMaterial)) {
+					throw new ProductNotOnPriceListException(m_productPrice, getLine());
+				}
 			}
 		}
 

@@ -35,6 +35,7 @@ import org.compiere.acct.FactLine;
 import org.compiere.model.I_C_PaySelection;
 import org.compiere.model.MAllocationHdr;
 import org.compiere.model.MBPartner;
+import org.compiere.model.MBank;
 import org.compiere.model.MBankAccount;
 import org.compiere.model.MBankStatement;
 import org.compiere.model.MBankStatementLine;
@@ -58,6 +59,7 @@ import org.compiere.model.MPaySelectionLine;
 import org.compiere.model.MPayment;
 import org.compiere.model.MPaymentBatch;
 import org.compiere.model.MProduction;
+import org.compiere.model.MProductionLine;
 import org.compiere.model.MProject;
 import org.compiere.model.MProjectIssue;
 import org.compiere.model.MProjectLine;
@@ -76,7 +78,6 @@ import org.compiere.util.CLogger;
 import org.compiere.util.DB;
 import org.compiere.util.Env;
 import org.compiere.util.Language;
-import org.compiere.util.TimeUtil;
 import org.eevolution.model.MDDOrder;
 import org.eevolution.model.MHRAttribute;
 import org.eevolution.model.MHRConcept;
@@ -128,7 +129,7 @@ public class CAValidator implements ModelValidator
 		engine.addModelChange(MCommissionDetail.Table_Name, this);
 		engine.addModelChange(MTimeExpenseLine.Table_Name, this);
 		engine.addModelChange(MWMInOutBoundLine.Table_Name, this);
-		//engine.addModelChange(MTaxDeclarationLine.Table_Name, this);
+		engine.addModelChange(MPaySelectionLine.Table_Name, this);
 		
 		engine.addDocValidate(MPaySelection.Table_Name	, this);
 		engine.addDocValidate(MBankStatement.Table_Name, this);
@@ -168,6 +169,7 @@ public class CAValidator implements ModelValidator
 				error = User4Mandatory(po);
 				if (po.is_ValueChanged(MOrder.COLUMNNAME_C_BPartner_ID))
 					error = upDateControlCredito(po);
+				
 			}
 			if(po.get_TableName().equals(MInvoice.Table_Name))
 				error = InvoiceTypeTaxDeclaration(po);		
@@ -201,13 +203,48 @@ public class CAValidator implements ModelValidator
 			}
 			
 		}
-		if (type == ModelValidator.TYPE_BEFORE_NEW && po.get_TableName().equals(MOrder.Table_Name))
+		if (type == ModelValidator.TYPE_BEFORE_NEW ) {
+			if( po.get_TableName().equals(MOrder.Table_Name))
 			error = UpdatePaymentRule(po);
+			if (po.get_TableName().equals(MPaySelectionLine.Table_Name)) {
+				error = C_PayselectionLine_GetPaymentRuleFromHeader(po);
+			}
+		}
+		
+		if (type == ModelValidator.TYPE_BEFORE_CHANGE && po.get_TableName().equals(MProductionLine.Table_Name))
+			if (po.is_ValueChanged(MProductionLine.COLUMNNAME_QtyUsed)){
+			error = productionLineUpdateMovementQtyFromQtyUsed(po);
+		}
 		
 		
 		
 		return error;
-	}	//	modelChange
+	}
+
+	/**
+	 * 
+	 */private String productionLineUpdateMovementQtyFromQtyUsed(PO po){
+		 MProductionLine productionLine = (MProductionLine)po;
+			if ( productionLine.getM_Product().isBOM() && productionLine.getM_Product().isStocked() )
+			{
+				productionLine.setMovementQty(productionLine.getQtyUsed().negate());
+			}
+		 return "";
+	 }	//	modelChange
+
+	/**
+	 * 
+	 */private String C_PayselectionLine_GetPaymentRuleFromHeader(PO po){
+		 
+		 MPaySelectionLine paySelectionLine =  (MPaySelectionLine)po;
+		 MPaySelection paySelection = paySelectionLine.getParent();
+
+		 Boolean isSoTrx = paySelection.get_ValueAsBoolean("IsSOTrx");
+		 if (!isSoTrx)
+			 return "";
+		 paySelectionLine.setPaymentRule(paySelection.get_ValueAsString(MPaySelectionLine.COLUMNNAME_PaymentRule));
+		 return "";
+	 }
 
 	private String User4Mandatory(PO po) {
 		MOrder order = (MOrder)po;
@@ -310,10 +347,11 @@ public class CAValidator implements ModelValidator
 		sqlRole.append("	AND r.iscanapprovecreditlimit = 'Y' ");
 		int noRole = DB.getSQLValueEx(order.get_TrxName(), sqlRole.toString(), Env.getAD_User_ID(order.getCtx()));
 		if (noRole>0) {
+			
 			return result;	
 			}
 		
-		if(order.get_ValueAsString("DocStatus_RejectStatus").equals("NO")) {
+		if(!order.get_ValueAsString("DocStatus_RejectStatus").equals("NO")) {
 			result = "Aprobar Credito";
 		}
 		return result;
@@ -503,11 +541,16 @@ public class CAValidator implements ModelValidator
 				//	Update check number
 				if (paySelectionCheck.getPaymentRule().equals(MPaySelectionCheck.PAYMENTRULE_Check))
 				{
-					payment.setCheckNo(paySelectionCheck.getDocumentNo());
+					payment.setCheckNo(paySelectionCheck.getParent().get_ValueAsString("CheckNo"));
+					payment.saveEx();
+				}
+				else if (paySelectionCheck.getPaymentRule().equals(MPaySelectionCheck.PAYMENTRULE_DirectDeposit))
+				{
+					payment.setR_AuthCode(paySelectionCheck.getParent().get_ValueAsString("R_AuthCode"));
 					payment.saveEx();
 				}
 			} else {	//	New Payment
-				I_C_PaySelection paySelection =  paySelectionCheck.getC_PaySelection();
+				MPaySelection paySelection =  paySelectionCheck.getParent();
 
 				Boolean payInmediate = true;
 				if (paySelection.getC_DocType().isSOTrx()) {
@@ -530,7 +573,7 @@ public class CAValidator implements ModelValidator
 				if (paySelectionCheck.getPaymentRule().equals(MPaySelectionCheck.PAYMENTRULE_Check)
 						|| paySelectionCheck.getPaymentRule().equals(MPaySelectionCheck.PAYMENTRULE_Cash)) {
 					payment.setBankCheck (paySelectionCheck.getParent().getC_BankAccount_ID(), false, paySelectionCheck.getDocumentNo());
-					payment.setCheckNo(paySelectionCheck.get_ValueAsString("CheckNo"));
+					payment.setCheckNo(paySelection.get_ValueAsString("CheckNo"));
 					payment.setVoiceAuthCode(paySelectionCheck.get_ValueAsString("TransactionCode"));
 					if (paySelectionCheck.getPaymentRule().equals(MPaySelectionCheck.PAYMENTRULE_Cash))
 						payment.setTenderType(MPayment.TENDERTYPE_Cash);
@@ -673,6 +716,29 @@ public class CAValidator implements ModelValidator
 	public String login (int AD_Org_ID, int AD_Role_ID, int AD_User_ID)
 	{
 		log.info("AD_User_ID=" + AD_User_ID);
+		
+		  StringBuffer sqlRole = new StringBuffer();
+		  sqlRole.append("SELECT count(*) FROM AD_Role r  WHERE r.IsActive='Y' ");
+		  sqlRole.append("	AND EXISTS (SELECT * FROM AD_User_Roles ur"); 
+		  sqlRole.append("	WHERE r.AD_Role_ID=ur.AD_Role_ID AND ur.IsActive='Y' AND ur.AD_User_ID= " + AD_User_ID); 
+		  sqlRole.append("	AND r.iscanapprovecreditlimit = 'Y' )"); 
+		  int noRole = DB.getSQLValueEx(null, sqlRole.toString());
+		  if (noRole>0) { Env.setContext(Env.getCtx(), "#CanApproveCreditlimit", true);
+		  } else Env.setContext(Env.getCtx(), "#CanApproveCreditlimit", false);
+		  
+		  StringBuffer sqlRolePriceLimit = new StringBuffer(); 
+		  sqlRolePriceLimit.append("SELECT count(*) FROM AD_Role r  WHERE r.IsActive='Y' ");
+		  sqlRolePriceLimit.append("	AND EXISTS (SELECT * FROM AD_User_Roles ur");
+		  sqlRolePriceLimit. append("	WHERE r.AD_Role_ID=ur.AD_Role_ID AND ur.IsActive='Y' AND ur.AD_User_ID= " + AD_User_ID); 
+		  sqlRolePriceLimit.append("	AND r.OverwritePriceLimit = 'Y') "); 
+		  noRole = DB.getSQLValueEx(null, sqlRolePriceLimit.toString()); 
+		  if (noRole>0) {
+		  Env.setContext(Env.getCtx(), "#CanApprovePricelimit", true); 
+		  } 
+		  else
+		  Env.setContext(Env.getCtx(), "#CanApprovePricelimit", false);
+		 
+		
 		return null;
 	}	//	login
 
@@ -705,9 +771,7 @@ public class CAValidator implements ModelValidator
         	}
         	if (po instanceof MOrder) {
         		error = OrderSetPrecision(po);
-        		error = AfterPrepareIsControlLimitPrice(po);
-        		if (error.isEmpty())
-        			error = AfterPrepareOrderControlCreditStop(po);
+        		//error = AfterPrepareOrderControlCreditStop(po);
         	}
         	if (po instanceof MInvoice) {
         		error = InvoiceSetPrecision(po);
@@ -718,83 +782,35 @@ public class CAValidator implements ModelValidator
         	//error = factAcct_UpdateDocumentNO(po)
         		;
         }
+        if (ModelValidator.TIMING_BEFORE_VOID == timing) {
+        	if (po instanceof MPaySelection)
+        		error = voidIncludedPayments(po);
+        }
         
 		return error;
+	}
+
+	/**
+	 * @param po
+	 */
+	private String voidIncludedPayments(PO po) {
+		List<MPaySelectionCheck> paySelectionChecks = MPaySelectionCheck.get(po.getCtx(), po.get_ID(), po.get_TrxName());
+		for (MPaySelectionCheck paySelectionCheck:paySelectionChecks) {
+			MPayment payment = (MPayment)paySelectionCheck.getC_Payment();
+			try
+			{
+				payment.voidIt();
+				payment.saveEx();
+			}
+			catch (NumberFormatException ex)
+			{
+				//logger.log(Level.SEVERE, "DocumentNo=" + paySelectionCheck.getDocumentNo(), ex);
+			}
+		}
+		return "";
 	}	//	docValidate
 	
 
-	private String bs_AfterPrepare(PO A_PO)
-	{
-		Predicate<MBankStatementLine> createPayment = (bsl)->  		
-			bsl != null && bsl.get_ValueAsInt(MPayment.COLUMNNAME_C_BankAccount_ID) != 0 && bsl.getC_Payment_ID() ==0;
-		
-		MBankStatement bankstatement = (MBankStatement)A_PO;
-		Arrays.stream(bankstatement.getLines(true))
-		.filter(bsl -> createPayment.test(bsl))
-		.forEach(bsl -> {
-			        MPaymentBatch pBatch = new MPaymentBatch(A_PO.getCtx(), 0 ,  A_PO.get_TrxName());
-			        String description = "Transferencia";
-			        pBatch.setName("Transferencia");
-			        pBatch.saveEx();
-			        MPayment paymentBankFrom = new MPayment(A_PO.getCtx(), 0 ,  A_PO.get_TrxName());
-			        paymentBankFrom.setC_BankAccount_ID(bankstatement.getC_BankAccount_ID());
-			        paymentBankFrom.setC_DocType_ID(false);
-			        String value = DB.getDocumentNo(paymentBankFrom.getC_DocType_ID(),A_PO.get_TrxName(), false,  paymentBankFrom);
-			        paymentBankFrom.setDocumentNo(value);
-			       // paymentBankFrom.setDocumentNo(P_DocumentNo);
-			        
-			        paymentBankFrom.setDateAcct(bankstatement.getStatementDate());
-			        paymentBankFrom.setDateTrx(bankstatement.getStatementDate());
-			        paymentBankFrom.setTenderType(X_C_Payment.TENDERTYPE_Account);
-			        paymentBankFrom.setDescription(description);
-			        paymentBankFrom.setC_BPartner_ID (1000026);
-			        paymentBankFrom.setC_Currency_ID(bankstatement.getC_BankAccount().getC_Currency_ID());
-			       // if (P_C_ConversionType_ID > 0)
-			        paymentBankFrom.setC_ConversionType_ID(114);    
-			        paymentBankFrom.setPayAmt(bsl.getTrxAmt().negate());
-			        paymentBankFrom.setOverUnderAmt(Env.ZERO);
-			        paymentBankFrom.setC_Charge_ID(1000456);
-			        paymentBankFrom.setAD_Org_ID(bankstatement.getAD_Org_ID());
-			        paymentBankFrom.setC_PaymentBatch_ID(pBatch.getC_PaymentBatch_ID());
-			        paymentBankFrom.saveEx();
-			        description = description + " desde" +  paymentBankFrom.getC_BankAccount().getAccountNo();
-			        paymentBankFrom.processIt(MPayment.DOCACTION_Complete);
-			        paymentBankFrom.saveEx();
-			        
-			        MPayment paymentBankTo = new MPayment(A_PO.getCtx(), 0 ,  A_PO.get_TrxName());
-			        paymentBankTo.setC_BankAccount_ID(bsl.get_ValueAsInt("C_BankAccount_ID"));
-			        paymentBankTo.setC_DocType_ID(true);
-			        value = DB.getDocumentNo(paymentBankTo.getC_DocType_ID(),A_PO.get_TrxName(), false,  paymentBankTo);
-			        paymentBankTo.setDocumentNo(value);        
-			        paymentBankTo.setC_PaymentBatch_ID(pBatch.getC_PaymentBatch_ID());
-			      //  paymentBankTo.setDocumentNo(P_DocumentNo);
-			        paymentBankTo.setDateAcct(bankstatement.getStatementDate());
-			        paymentBankTo.setDateTrx(bankstatement.getStatementDate());
-			        paymentBankTo.setTenderType(X_C_Payment.TENDERTYPE_Account);
-			        paymentBankTo.setDescription(description);
-			        paymentBankTo.setC_BPartner_ID (1000026);
-			        paymentBankTo.setC_Currency_ID(100);        
-			        paymentBankFrom.setC_ConversionType_ID(114);    
-			        paymentBankTo.setPayAmt(bsl.getTrxAmt().negate());
-			        paymentBankTo.setOverUnderAmt(Env.ZERO);
-			        paymentBankTo.setC_Charge_ID(1000456);
-			        paymentBankTo.setAD_Org_ID(bankstatement.getAD_Org_ID());
-			        paymentBankTo.saveEx();
-			        description = description + " a " +  paymentBankTo.getC_BankAccount().getAccountNo();
-			        paymentBankTo.processIt(MPayment.DOCACTION_Complete);
-			        paymentBankTo.saveEx();
-			        
-			        pBatch.setName(description);        
-			        description = description + " Monto:" +  paymentBankTo.getPayAmt();
-			        pBatch.set_ValueOfColumn("Description", description);
-			        pBatch.setProcessingDate(bankstatement.getStatementDate());
-			        pBatch.saveEx();
-			        bsl.setPayment(paymentBankFrom);
-			        bsl.saveEx();					
-				});    
-		return "";
-	}
-	
 	private MPayment createPayment (MBankStatementLine bankStatementLine)
 		{
 			//	Trx Amount = Payment overwrites Statement Amount if defined
@@ -851,25 +867,6 @@ public class CAValidator implements ModelValidator
 		}	//	createPayment
 	
 
-	private String bs_AfterPrepare_CreatePayment(PO A_PO)
-	{
-		Predicate<MBankStatementLine> createPayment = (bsl)->  		
-			bsl != null && bsl.get_ValueAsInt(MPayment.COLUMNNAME_C_BankAccount_ID) == 0 && bsl.getC_Payment_ID() ==0 && bsl.getC_BPartner_ID() != 0;
-		
-		MBankStatement bankstatement = (MBankStatement)A_PO;
-		Arrays.stream(bankstatement.getLines(true))
-		.filter(bsl -> createPayment.test(bsl))
-		.forEach(bsl -> {
-			MPayment payment = createPayment(bsl);
-
-			if (payment != null) {
-				bsl.setC_Payment_ID(payment.getC_Payment_ID());
-				bsl.saveEx();				
-			}
-		});
-		return "";
-	}
-
 	private String commissionAmtUpdate(PO A_PO)
 	{
 		MCommissionDetail commissionDetail = (MCommissionDetail)A_PO;
@@ -899,10 +896,21 @@ public class CAValidator implements ModelValidator
 	
 	private String PaymentAutoReconcile(PO A_PO) {
 		MPayment payment = (MPayment)A_PO;
+		//if (payment.getTenderType().equals(MPayment.TENDERTYPE_Cash))
+		//	return "";
 		MBankAccount bankAccount = (MBankAccount)payment.getC_BankAccount();
 		Boolean isAutoReconciled = bankAccount.get_ValueAsBoolean("isAutoReconciled");
 		if(isAutoReconciled) {
-			MBankStatementLine bsl = MBankStatement.addPayment(payment);
+			int[] bsls = MBankStatementLine.getAllIDs(MBankStatementLine.Table_Name, "c_Payment_ID=" + payment.getC_Payment_ID(), payment.get_TrxName());
+			MBankStatementLine bsl = null;
+			if (bsls.length==0) {
+				bsl = MBankStatement.addPayment(payment);
+			}
+			else
+				bsl = new MBankStatementLine(payment.getCtx(), bsls[0], payment.get_TrxName());
+			if (bsl.getParent().getC_BankAccount().getC_Bank().getBankType().equals((MBank.BANKTYPE_CashJournal)))
+					bsl.getParent().processIt("CO");
+					bsl.getParent().saveEx();
 			}
 		return "";
 	}
@@ -1048,8 +1056,9 @@ public class CAValidator implements ModelValidator
 				.first();
 		if (taxdefinition == null || taxdefinition.getC_Tax_ID() == 0) {
 			return "";		}
-		else
+		else {
 			orderLine.setC_Tax_ID(taxdefinition.getC_Tax_ID());
+		}
 		Integer i = orderLine.get_ID();
 		Object object  = (Object)i;
 		//

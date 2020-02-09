@@ -17,67 +17,53 @@
 
 package org.adempiere.process;
 
+import java.sql.Timestamp;
 import org.compiere.process.SvrProcess;
 
-/** Generated Process for (SBP_PaySelectionPrintAndPay)
+/** Generated Process for (MOrderReverseCorrectIt)
  *  @author ADempiere (generated) 
  *  @version Release 3.9.3
  */
-public abstract class Print_PayselectionAbstract extends SvrProcess {
+public abstract class MOrderReverseCorrectItAbstract extends SvrProcess {
 	/** Process Value 	*/
-	private static final String VALUE_FOR_PROCESS = "SBP_PaySelectionPrintAndPay";
+	private static final String VALUE_FOR_PROCESS = "10000002";
 	/** Process Name 	*/
-	private static final String NAME_FOR_PROCESS = "SBP_PaySelectionPrintAndPay";
+	private static final String NAME_FOR_PROCESS = "MOrderReverseCorrectIt";
 	/** Process Id 	*/
-	private static final int ID_FOR_PROCESS = 54339;
-	/**	Parameter Name for Current Next	*/
-	public static final String CURRENTNEXT = "CurrentNext";
-	/**	Parameter Name for Bank Account Document	*/
-	public static final String C_BANKACCOUNTDOC_ID = "C_BankAccountDoc_ID";
-	/**	Parameter Name for cmd_PayPrint	*/
-	public static final String CMD_PAYPRINT = "cmd_PayPrint";
-	/**	Parameter Value for Current Next	*/
-	private int currentNext;
-	/**	Parameter Value for Bank Account Document	*/
-	private int bankAccountDocId;
-	/**	Parameter Value for cmd_PayPrint	*/
-	private String payPrint;
+	private static final int ID_FOR_PROCESS = 1000075;
+	/**	Parameter Name for Order	*/
+	public static final String C_ORDER_ID = "C_Order_ID";
+	/**	Parameter Name for Date Ordered	*/
+	public static final String DATEORDERED = "DateOrdered";
+	/**	Parameter Value for Order	*/
+	private int orderId;
+	/**	Parameter Value for Date Ordered	*/
+	private Timestamp dateOrdered;
 
 	@Override
 	protected void prepare() {
-		currentNext = getParameterAsInt(CURRENTNEXT);
-		bankAccountDocId = getParameterAsInt(C_BANKACCOUNTDOC_ID);
-		payPrint = getParameterAsString(CMD_PAYPRINT);
+		orderId = getParameterAsInt(C_ORDER_ID);
+		dateOrdered = getParameterAsTimestamp(DATEORDERED);
 	}
 
-	/**	 Getter Parameter Value for Current Next	*/
-	protected int getCurrentNext() {
-		return currentNext;
+	/**	 Getter Parameter Value for Order	*/
+	protected int getOrderId() {
+		return orderId;
 	}
 
-	/**	 Setter Parameter Value for Current Next	*/
-	protected void setCurrentNext(int currentNext) {
-		this.currentNext = currentNext;
+	/**	 Setter Parameter Value for Order	*/
+	protected void setOrderId(int orderId) {
+		this.orderId = orderId;
 	}
 
-	/**	 Getter Parameter Value for Bank Account Document	*/
-	protected int getBankAccountDocId() {
-		return bankAccountDocId;
+	/**	 Getter Parameter Value for Date Ordered	*/
+	protected Timestamp getDateOrdered() {
+		return dateOrdered;
 	}
 
-	/**	 Setter Parameter Value for Bank Account Document	*/
-	protected void setBankAccountDocId(int bankAccountDocId) {
-		this.bankAccountDocId = bankAccountDocId;
-	}
-
-	/**	 Getter Parameter Value for cmd_PayPrint	*/
-	protected String getPayPrint() {
-		return payPrint;
-	}
-
-	/**	 Setter Parameter Value for cmd_PayPrint	*/
-	protected void setPayPrint(String payPrint) {
-		this.payPrint = payPrint;
+	/**	 Setter Parameter Value for Date Ordered	*/
+	protected void setDateOrdered(Timestamp dateOrdered) {
+		this.dateOrdered = dateOrdered;
 	}
 
 	/**	 Getter Parameter Value for Process ID	*/

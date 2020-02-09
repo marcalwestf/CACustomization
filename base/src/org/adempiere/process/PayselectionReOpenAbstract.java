@@ -19,65 +19,35 @@ package org.adempiere.process;
 
 import org.compiere.process.SvrProcess;
 
-/** Generated Process for (SBP_PaySelectionPrintAndPay)
+/** Generated Process for (PayselectionReOpen)
  *  @author ADempiere (generated) 
  *  @version Release 3.9.3
  */
-public abstract class Print_PayselectionAbstract extends SvrProcess {
+public abstract class PayselectionReOpenAbstract extends SvrProcess {
 	/** Process Value 	*/
-	private static final String VALUE_FOR_PROCESS = "SBP_PaySelectionPrintAndPay";
+	private static final String VALUE_FOR_PROCESS = "PayselectionReOpen";
 	/** Process Name 	*/
-	private static final String NAME_FOR_PROCESS = "SBP_PaySelectionPrintAndPay";
+	private static final String NAME_FOR_PROCESS = "PayselectionReOpen";
 	/** Process Id 	*/
-	private static final int ID_FOR_PROCESS = 54339;
-	/**	Parameter Name for Current Next	*/
-	public static final String CURRENTNEXT = "CurrentNext";
-	/**	Parameter Name for Bank Account Document	*/
-	public static final String C_BANKACCOUNTDOC_ID = "C_BankAccountDoc_ID";
-	/**	Parameter Name for cmd_PayPrint	*/
-	public static final String CMD_PAYPRINT = "cmd_PayPrint";
-	/**	Parameter Value for Current Next	*/
-	private int currentNext;
-	/**	Parameter Value for Bank Account Document	*/
-	private int bankAccountDocId;
-	/**	Parameter Value for cmd_PayPrint	*/
-	private String payPrint;
+	private static final int ID_FOR_PROCESS = 1000076;
+	/**	Parameter Name for Payment Selection	*/
+	public static final String C_PAYSELECTION_ID = "C_PaySelection_ID";
+	/**	Parameter Value for Payment Selection	*/
+	private int paySelectionId;
 
 	@Override
 	protected void prepare() {
-		currentNext = getParameterAsInt(CURRENTNEXT);
-		bankAccountDocId = getParameterAsInt(C_BANKACCOUNTDOC_ID);
-		payPrint = getParameterAsString(CMD_PAYPRINT);
+		paySelectionId = getParameterAsInt(C_PAYSELECTION_ID);
 	}
 
-	/**	 Getter Parameter Value for Current Next	*/
-	protected int getCurrentNext() {
-		return currentNext;
+	/**	 Getter Parameter Value for Payment Selection	*/
+	protected int getPaySelectionId() {
+		return paySelectionId;
 	}
 
-	/**	 Setter Parameter Value for Current Next	*/
-	protected void setCurrentNext(int currentNext) {
-		this.currentNext = currentNext;
-	}
-
-	/**	 Getter Parameter Value for Bank Account Document	*/
-	protected int getBankAccountDocId() {
-		return bankAccountDocId;
-	}
-
-	/**	 Setter Parameter Value for Bank Account Document	*/
-	protected void setBankAccountDocId(int bankAccountDocId) {
-		this.bankAccountDocId = bankAccountDocId;
-	}
-
-	/**	 Getter Parameter Value for cmd_PayPrint	*/
-	protected String getPayPrint() {
-		return payPrint;
-	}
-
-	/**	 Setter Parameter Value for cmd_PayPrint	*/
-	protected void setPayPrint(String payPrint) {
-		this.payPrint = payPrint;
+	/**	 Setter Parameter Value for Payment Selection	*/
+	protected void setPaySelectionId(int paySelectionId) {
+		this.paySelectionId = paySelectionId;
 	}
 
 	/**	 Getter Parameter Value for Process ID	*/

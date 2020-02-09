@@ -21,7 +21,6 @@ import java.math.RoundingMode;
 import java.sql.ResultSet;
 import java.sql.Timestamp;
 import java.text.DecimalFormat;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Properties;
@@ -242,9 +241,9 @@ public class MProduction extends X_M_Production implements DocAction , DocumentR
 			return;
 		//	
 		BigDecimal productionQty = getProductionQty();
-		//if(isVoid) {
-		//	productionQty = productionQty.negate();
-		//}
+		if(isVoid) {
+			productionQty = productionQty.negate();
+		}
 		//	Set to Parent
 		parent.setQtyReserved(parent.getQtyReserved().subtract(productionQty));
 		parent.setQtyCompleted(parent.getQtyCompleted().add(productionQty));
@@ -538,6 +537,7 @@ public class MProduction extends X_M_Production implements DocAction , DocumentR
 			setIsCreated(false);
 			deleteLines();
 			setProductionQty(BigDecimal.ZERO);
+			setDocStatus(MProduction.DOCSTATUS_Voided);
 		} else {
 			boolean accrual = false;
 			try {

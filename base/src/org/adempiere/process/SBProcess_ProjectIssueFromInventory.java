@@ -71,8 +71,11 @@ public class SBProcess_ProjectIssueFromInventory extends SBProcess_ProjectIssueF
 		if (getDescription() != null && getDescription().length() > 0)
 			projectIssue.setDescription(getDescription());
 		projectIssue.saveEx();
-		projectIssue.completeIt();
-
+		projectIssue.processIt(getDocAction());
+		
+		if (getDocAction().equals(MProjectIssue.DOCACTION_Complete)) {
+			
+		
 		//	Create Project Line
 		MProjectLine projectLine = new MProjectLine(project);
 		projectLine.setMProjectIssue(projectIssue);
@@ -90,6 +93,10 @@ public class SBProcess_ProjectIssueFromInventory extends SBProcess_ProjectIssueF
 		projectLine.saveEx();
 		addLog(projectIssue.getLine(), projectIssue.getMovementDate(), projectIssue.getMovementQty(), null);
 		return "@Created@ 1";
+		}
+
+		return "@Created@ 1";
+
 	}	//	issueInventory
 
 }

@@ -24,24 +24,16 @@ import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Properties;
 import java.util.logging.Level;
-
 import org.compiere.util.CLogger;
 import org.compiere.util.DB;
 import org.compiere.util.DisplayType;
 import org.compiere.util.Env;
 import org.eevolution.model.X_C_TaxDefinition;
-
-
 /**
  *	Callouts for Invoice Batch
  *	
  *  @author Jorg Janke
  *  @version $Id: CalloutInvoiceBatch.java,v 1.3 2006/07/30 00:51:03 jjanke Exp $
- */
-/**
- * 
- * @author SHW_User
- * SHW Suche nach Steuer ueber Taxdefinition,  Zeile 416
  */
 public class CalloutInvoiceBatch extends CalloutEngine
 {
@@ -62,7 +54,6 @@ public class CalloutInvoiceBatch extends CalloutEngine
 		if (value == null)
 			return "";
 		mTab.setValue ("DateAcct", value);
-		//
 		setDocumentNo(ctx, WindowNo, mTab);
 		return "";
 	}	//	date
@@ -85,11 +76,12 @@ public class CalloutInvoiceBatch extends CalloutEngine
 	public String bPartner (Properties ctx, int WindowNo, GridTab mTab, GridField mField, Object value)
 	{
 		if (Env.getContext(ctx, WindowNo, "IsQuedan").equals("Y"))
-				return"";//	
+				return"";
 		Integer C_BPartner_ID = (Integer)value;
 		if (C_BPartner_ID == null || C_BPartner_ID.intValue() == 0)
 			return "";
 
+		
 		String sql = "SELECT p.AD_Language,p.C_PaymentTerm_ID,"
 			+ " COALESCE(p.M_PriceList_ID,g.M_PriceList_ID) AS M_PriceList_ID, p.PaymentRule,p.POReference,"
 			+ " p.SO_Description,p.IsDiscountPrinted,"

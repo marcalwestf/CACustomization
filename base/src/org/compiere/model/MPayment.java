@@ -1710,11 +1710,10 @@ public final class MPayment extends X_C_Payment
 				if (length > 0)		//	get last invoice
 					setC_Invoice_ID (invoices[length-1].getC_Invoice_ID());
 				//
-				if (getC_Invoice_ID() == 0)
-				{
-					processMsg = "@NotFound@ @C_Invoice_ID@";
-					return DocAction.STATUS_Invalid;
-				}
+				/*
+				 * if (getC_Invoice_ID() == 0) //es soll nicht automatisch ausgeliefert werden {
+				 * processMsg = "@NotFound@ @C_Invoice_ID@"; return DocAction.STATUS_Invalid; }
+				 */
 			}	//	WaitingPayment
 		}
 		
@@ -1866,19 +1865,19 @@ public final class MPayment extends X_C_Payment
 			processMsg += " @CounterDoc@: @C_Payment_ID@=" + counter.getDocumentNo();
 
 		// @Trifon - CashPayments
-		if ( isCashTrx() && getC_POS_ID() == 0) {
+		//if ( isCashTrx() && getC_POS_ID() == 0) {
 			// Create Cash Book entry - check that the bank is a cash bank
 			// The bank account is mandatory
-			MBankAccount bankAccount = (MBankAccount) getC_BankAccount();
-			if ( !bankAccount.getC_Bank().getBankType().equals(MBank.BANKTYPE_CashJournal) ) {
-				m_errorMessage = Msg.parseTranslation(getCtx(), "@Mandatory@: @C_CashBook_ID@");
-				log.saveError("Error", m_errorMessage);
-				processMsg = "@NoCashBook@";
-				return DocAction.STATUS_Invalid;
-			}
+			//MBankAccount bankAccount = (MBankAccount) getC_BankAccount();
+			//if ( !bankAccount.getC_Bank().getBankType().equals(MBank.BANKTYPE_CashJournal) ) {
+			//	m_errorMessage = Msg.parseTranslation(getCtx(), "@Mandatory@: @C_CashBook_ID@");
+			//	log.saveError("Error", m_errorMessage);
+			//	processMsg = "@NoCashBook@";
+			//	return DocAction.STATUS_Invalid;
+			//}
 			// Find or create a suitable bank statement which is or will become the Cash Journal of this day
-			MBankStatement.addPayment(this);
-		}
+			//MBankStatement.addPayment(this);
+		//}
 		// End Trifon - CashPayments
 		
 		//	User Validation

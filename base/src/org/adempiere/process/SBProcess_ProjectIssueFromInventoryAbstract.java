@@ -22,7 +22,7 @@ import org.compiere.process.SvrProcess;
 
 /** Generated Process for (SBProcess_ProjectIssueFromInventory)
  *  @author ADempiere (generated) 
- *  @version Release 3.9.1
+ *  @version Release 3.9.3
  */
 public abstract class SBProcess_ProjectIssueFromInventoryAbstract extends SvrProcess {
 	/** Process Value 	*/
@@ -41,6 +41,8 @@ public abstract class SBProcess_ProjectIssueFromInventoryAbstract extends SvrPro
 	public static final String MOVEMENTDATE = "MovementDate";
 	/**	Parameter Name for Description	*/
 	public static final String DESCRIPTION = "Description";
+	/**	Parameter Name for Document Action	*/
+	public static final String DOCACTION = "DocAction";
 	/**	Parameter Value for Project	*/
 	private int projectId;
 	/**	Parameter Value for Project Phase	*/
@@ -51,6 +53,8 @@ public abstract class SBProcess_ProjectIssueFromInventoryAbstract extends SvrPro
 	private Timestamp movementDate;
 	/**	Parameter Value for Description	*/
 	private String description;
+	/**	Parameter Value for Document Action	*/
+	private String docAction;
 
 	@Override
 	protected void prepare() {
@@ -59,6 +63,7 @@ public abstract class SBProcess_ProjectIssueFromInventoryAbstract extends SvrPro
 		projectTaskId = getParameterAsInt(C_PROJECTTASK_ID);
 		movementDate = getParameterAsTimestamp(MOVEMENTDATE);
 		description = getParameterAsString(DESCRIPTION);
+		docAction = getParameterAsString(DOCACTION);
 	}
 
 	/**	 Getter Parameter Value for Project	*/
@@ -109,6 +114,16 @@ public abstract class SBProcess_ProjectIssueFromInventoryAbstract extends SvrPro
 	/**	 Setter Parameter Value for Description	*/
 	protected void setDescription(String description) {
 		this.description = description;
+	}
+
+	/**	 Getter Parameter Value for Document Action	*/
+	protected String getDocAction() {
+		return docAction;
+	}
+
+	/**	 Setter Parameter Value for Document Action	*/
+	protected void setDocAction(String docAction) {
+		this.docAction = docAction;
 	}
 
 	/**	 Getter Parameter Value for Process ID	*/
