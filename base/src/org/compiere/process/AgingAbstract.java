@@ -21,7 +21,7 @@ import java.sql.Timestamp;
 
 /** Generated Process for (Antigüedad)
  *  @author ADempiere (generated) 
- *  @version Release 3.9.2
+ *  @version Release 3.9.3
  */
 public abstract class AgingAbstract extends SvrProcess {
 	/** Process Value 	*/
@@ -48,6 +48,8 @@ public abstract class AgingAbstract extends SvrProcess {
 	public static final String ISLISTINVOICES = "IsListInvoices";
 	/**	Parameter Name for Sales Representative	*/
 	public static final String SALESREP_ID = "SalesRep_ID";
+	/**	Parameter Name for Sales Representative	*/
+	public static final String ISSALESREP = "IsSalesRep";
 	/**	Parameter Value for Statement date	*/
 	private Timestamp statementDate;
 	/**	Parameter Value for Account Date	*/
@@ -66,6 +68,8 @@ public abstract class AgingAbstract extends SvrProcess {
 	private boolean isListInvoices;
 	/**	Parameter Value for Sales Representative	*/
 	private int salesRepId;
+	/**	Parameter Value for Sales Representative	*/
+	private boolean isSalesRep;
 
 	@Override
 	protected void prepare() {
@@ -78,6 +82,7 @@ public abstract class AgingAbstract extends SvrProcess {
 		bPartnerId = getParameterAsInt(C_BPARTNER_ID);
 		isListInvoices = getParameterAsBoolean(ISLISTINVOICES);
 		salesRepId = getParameterAsInt(SALESREP_ID);
+		isSalesRep = getParameterAsBoolean(ISSALESREP);
 	}
 
 	/**	 Getter Parameter Value for Statement date	*/
@@ -168,6 +173,16 @@ public abstract class AgingAbstract extends SvrProcess {
 	/**	 Setter Parameter Value for Sales Representative	*/
 	protected void setSalesRepId(int salesRepId) {
 		this.salesRepId = salesRepId;
+	}
+
+	/**	 Getter Parameter Value for Sales Representative	*/
+	protected boolean isSalesRep() {
+		return isSalesRep;
+	}
+
+	/**	 Setter Parameter Value for Sales Representative	*/
+	protected void setIsSalesRep(boolean isSalesRep) {
+		this.isSalesRep = isSalesRep;
 	}
 
 	/**	 Getter Parameter Value for Process ID	*/

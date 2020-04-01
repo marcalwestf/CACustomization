@@ -23,6 +23,7 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 
 import org.adempiere.exceptions.DBException;
+import org.compiere.model.I_C_Invoice;
 import org.compiere.model.MAging;
 import org.compiere.model.MRole;
 import org.compiere.util.DB;
@@ -101,14 +102,14 @@ public class Aging extends AgingAbstract
 				.append(", currencyConvert(invoiceOpenToDate(oi.C_Invoice_ID,oi.C_InvoicePaySchedule_ID,"+dateacct+")").append(s);  // 13
 			}
 		}
-		sql.append(",oi.C_Activity_ID,oi.C_Campaign_ID,oi.C_Project_ID,oi.AD_Org_ID ");	//	14..17
+		sql.append(",oi.C_Activity_ID,oi.C_Campaign_ID,oi.C_Project_ID,oi.AD_Org_ID , oi.c_PaymentTerm_ID, oi.Salesrep_ID");	//	14..17
 		if (!isDateAcct())//FR 1933937
 		{
-			sql.append(" FROM RV_OpenItem oi");
+			sql.append(" FROM rv_C_INvoice oi");
 		}
 		else
 		{
-			sql.append(" FROM RV_OpenItemToDate oi");
+			sql.append(" FROM rv_C_INvoice oi");
 		}
 		
 		sql.append(" INNER JOIN C_BPartner bp ON (oi.C_BPartner_ID=bp.C_BPartner_ID) "
@@ -135,6 +136,11 @@ public class Aging extends AgingAbstract
 		if (getSalesRepId()>0)
 		{
 			sql.append(" AND oi.salesrep_ID=").append(getSalesRepId());
+		}
+		if(isSalesRep()) {
+			sql.append(" and EXISTS (SELECT 1 FROM AD_User u " + 
+					"	INNER JOIN c_Bpartner bp on u.c_Bpartner_ID=bp.c_Bpartner_ID " + 
+					"	WHERE u.ad_User_ID=oi.salesrep_ID AND bp.IsSalesRep='Y') ");
 		}
 		
 		sql.append(" ORDER BY oi.C_BPartner_ID, oi.C_Currency_ID, oi.C_Invoice_ID");
@@ -179,6 +185,8 @@ public class Aging extends AgingAbstract
 				int C_Activity_ID = isListInvoices() ? rs.getInt(14) : 0;
 				int C_Campaign_ID = isListInvoices() ? rs.getInt(15) : 0;
 				int C_Project_ID = isListInvoices() ? rs.getInt(16) : 0;
+				int C_PaymentTerm_ID = isListInvoices() ? rs.getInt(18) : 0;
+				int SalesRep_ID = isListInvoices() ? rs.getInt(19) : 0;
 				int AD_Org_ID = rs.getInt(17);
 				
 				rows++;
@@ -204,6 +212,8 @@ public class Aging extends AgingAbstract
 					aging.setC_Project_ID(C_Project_ID);
                     aging.set_ValueOfColumn("C_BankAccount_ID", 0);
                     aging.set_ValueOfColumn("C_CashFlow_ID", 0);
+                    aging.set_ValueOfColumn(I_C_Invoice.COLUMNNAME_C_Payment_ID, C_PaymentTerm_ID);
+                    aging.set_ValueOfColumn(I_C_Invoice.COLUMNNAME_SalesRep_ID, SalesRep_ID);
 					aging.setDateAcct(isDateAcct());
 				}
 				//	Fill Buckets

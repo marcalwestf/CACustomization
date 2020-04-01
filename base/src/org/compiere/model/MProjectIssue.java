@@ -94,6 +94,7 @@ public class MProjectIssue extends X_C_ProjectIssue implements IDocumentLine, Do
 		setClientOrg(project.getAD_Client_ID(), project.getAD_Org_ID());
 		setC_Project_ID (project.getC_Project_ID());	//	Parent
 		setLine (getNextLine());
+		setC_DocType_ID(MDocType.getDocType(MDocType.DOCBASETYPE_ProjectIssue, getAD_Org_ID()));
 		m_parent = project;
 		//
 	//	setM_Locator_ID (0);

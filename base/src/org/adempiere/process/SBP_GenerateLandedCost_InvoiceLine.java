@@ -17,6 +17,7 @@
 
 package org.adempiere.process;
 
+import org.adempiere.engine.CostEngineFactory;
 import org.compiere.model.MInOut;
 import org.compiere.model.MInvoiceLine;
 import org.compiere.model.MLandedCost;
@@ -39,7 +40,9 @@ public class SBP_GenerateLandedCost_InvoiceLine extends SBP_GenerateLandedCost_I
 	{ getSelectionKeys().stream().forEach(invoiceLineId -> {
         MInvoiceLine invoiceLine = new MInvoiceLine(getCtx(), invoiceLineId, get_TrxName());
         MLandedCost landedCost = createLandedCost(invoiceLine);
-        landedCost.allocateCosts();        
+        landedCost.allocateCosts();  
+        //if (landedCost.getC_InvoiceLine().getC_Invoice().getDocStatus().equals("CO"))
+		//	generateCostDetail(landedCost);	
     });
 
 		return "";
@@ -65,6 +68,14 @@ public class SBP_GenerateLandedCost_InvoiceLine extends SBP_GenerateLandedCost_I
 
         landedCost.saveEx();
         return landedCost;
+	}
+	
+	private void generateCostDetail(MLandedCost landedCost)
+	{
+		for (MLandedCostAllocation allocation : MLandedCostAllocation.getOfInvoiceLine(getCtx(), landedCost.getC_InvoiceLine_ID(), get_TrxName()))
+		{
+			CostEngineFactory.getCostEngine(getAD_Client_ID()).createCostDetailForLandedCostAllocation(allocation);
+		}
 	}
 
 }

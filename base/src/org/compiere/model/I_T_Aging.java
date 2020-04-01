@@ -22,7 +22,7 @@ import org.compiere.util.KeyNamePair;
 
 /** Generated Interface for T_Aging
  *  @author Adempiere (generated) 
- *  @version Release 3.9.2
+ *  @version Release 3.9.3
  */
 public interface I_T_Aging 
 {
@@ -92,6 +92,21 @@ public interface I_T_Aging
 
 	public org.compiere.model.I_C_Activity getC_Activity() throws RuntimeException;
 
+    /** Column name C_BankAccount_ID */
+    public static final String COLUMNNAME_C_BankAccount_ID = "C_BankAccount_ID";
+
+	/** Set Bank Account.
+	  * Account at the Bank
+	  */
+	public void setC_BankAccount_ID (int C_BankAccount_ID);
+
+	/** Get Bank Account.
+	  * Account at the Bank
+	  */
+	public int getC_BankAccount_ID();
+
+	public org.compiere.model.I_C_BankAccount getC_BankAccount() throws RuntimeException;
+
     /** Column name C_BP_Group_ID */
     public static final String COLUMNNAME_C_BP_Group_ID = "C_BP_Group_ID";
 
@@ -121,21 +136,6 @@ public interface I_T_Aging
 	public int getC_BPartner_ID();
 
 	public org.compiere.model.I_C_BPartner getC_BPartner() throws RuntimeException;
-
-    /** Column name C_BankAccount_ID */
-    public static final String COLUMNNAME_C_BankAccount_ID = "C_BankAccount_ID";
-
-	/** Set Bank Account.
-	  * Account at the Bank
-	  */
-	public void setC_BankAccount_ID (int C_BankAccount_ID);
-
-	/** Get Bank Account.
-	  * Account at the Bank
-	  */
-	public int getC_BankAccount_ID();
-
-	public org.compiere.model.I_C_BankAccount getC_BankAccount() throws RuntimeException;
 
     /** Column name C_Campaign_ID */
     public static final String COLUMNNAME_C_Campaign_ID = "C_Campaign_ID";
@@ -178,21 +178,6 @@ public interface I_T_Aging
 
 	public org.compiere.model.I_C_Currency getC_Currency() throws RuntimeException;
 
-    /** Column name C_InvoicePaySchedule_ID */
-    public static final String COLUMNNAME_C_InvoicePaySchedule_ID = "C_InvoicePaySchedule_ID";
-
-	/** Set Invoice Payment Schedule.
-	  * Invoice Payment Schedule
-	  */
-	public void setC_InvoicePaySchedule_ID (int C_InvoicePaySchedule_ID);
-
-	/** Get Invoice Payment Schedule.
-	  * Invoice Payment Schedule
-	  */
-	public int getC_InvoicePaySchedule_ID();
-
-	public org.compiere.model.I_C_InvoicePaySchedule getC_InvoicePaySchedule() throws RuntimeException;
-
     /** Column name C_Invoice_ID */
     public static final String COLUMNNAME_C_Invoice_ID = "C_Invoice_ID";
 
@@ -208,6 +193,21 @@ public interface I_T_Aging
 
 	public org.compiere.model.I_C_Invoice getC_Invoice() throws RuntimeException;
 
+    /** Column name C_InvoicePaySchedule_ID */
+    public static final String COLUMNNAME_C_InvoicePaySchedule_ID = "C_InvoicePaySchedule_ID";
+
+	/** Set Invoice Payment Schedule.
+	  * Invoice Payment Schedule
+	  */
+	public void setC_InvoicePaySchedule_ID (int C_InvoicePaySchedule_ID);
+
+	/** Get Invoice Payment Schedule.
+	  * Invoice Payment Schedule
+	  */
+	public int getC_InvoicePaySchedule_ID();
+
+	public org.compiere.model.I_C_InvoicePaySchedule getC_InvoicePaySchedule() throws RuntimeException;
+
     /** Column name C_Order_ID */
     public static final String COLUMNNAME_C_Order_ID = "C_Order_ID";
 
@@ -222,6 +222,21 @@ public interface I_T_Aging
 	public int getC_Order_ID();
 
 	public org.compiere.model.I_C_Order getC_Order() throws RuntimeException;
+
+    /** Column name C_PaymentTerm_ID */
+    public static final String COLUMNNAME_C_PaymentTerm_ID = "C_PaymentTerm_ID";
+
+	/** Set Payment Term.
+	  * The terms of Payment (timing, discount)
+	  */
+	public void setC_PaymentTerm_ID (int C_PaymentTerm_ID);
+
+	/** Get Payment Term.
+	  * The terms of Payment (timing, discount)
+	  */
+	public int getC_PaymentTerm_ID();
+
+	public org.compiere.model.I_C_PaymentTerm getC_PaymentTerm() throws RuntimeException;
 
     /** Column name C_Project_ID */
     public static final String COLUMNNAME_C_Project_ID = "C_Project_ID";
@@ -479,6 +494,24 @@ public interface I_T_Aging
 	/** Get Past Due 1-7	  */
 	public BigDecimal getPastDue1_7();
 
+    /** Column name PastDue120_180 */
+    public static final String COLUMNNAME_PastDue120_180 = "PastDue120_180";
+
+	/** Set PastDue120_180	  */
+	public void setPastDue120_180 (BigDecimal PastDue120_180);
+
+	/** Get PastDue120_180	  */
+	public BigDecimal getPastDue120_180();
+
+    /** Column name PastDue180_360 */
+    public static final String COLUMNNAME_PastDue180_360 = "PastDue180_360";
+
+	/** Set PastDue180_360	  */
+	public void setPastDue180_360 (BigDecimal PastDue180_360);
+
+	/** Get PastDue180_360	  */
+	public BigDecimal getPastDue180_360();
+
     /** Column name PastDue31_60 */
     public static final String COLUMNNAME_PastDue31_60 = "PastDue31_60";
 
@@ -496,6 +529,15 @@ public interface I_T_Aging
 
 	/** Get Past Due > 31	  */
 	public BigDecimal getPastDue31_Plus();
+
+    /** Column name PastDue360_plus */
+    public static final String COLUMNNAME_PastDue360_plus = "PastDue360_plus";
+
+	/** Set PastDue360_plus	  */
+	public void setPastDue360_plus (BigDecimal PastDue360_plus);
+
+	/** Get PastDue360_plus	  */
+	public BigDecimal getPastDue360_plus();
 
     /** Column name PastDue61_90 */
     public static final String COLUMNNAME_PastDue61_90 = "PastDue61_90";
@@ -524,6 +566,15 @@ public interface I_T_Aging
 	/** Get Past Due 8-30	  */
 	public BigDecimal getPastDue8_30();
 
+    /** Column name PastDue90_120 */
+    public static final String COLUMNNAME_PastDue90_120 = "PastDue90_120";
+
+	/** Set PastDue90_120	  */
+	public void setPastDue90_120 (BigDecimal PastDue90_120);
+
+	/** Get PastDue90_120	  */
+	public BigDecimal getPastDue90_120();
+
     /** Column name PastDue91_Plus */
     public static final String COLUMNNAME_PastDue91_Plus = "PastDue91_Plus";
 
@@ -542,6 +593,21 @@ public interface I_T_Aging
 	/** Get Past Due	  */
 	public BigDecimal getPastDueAmt();
 
+    /** Column name SalesRep_ID */
+    public static final String COLUMNNAME_SalesRep_ID = "SalesRep_ID";
+
+	/** Set Sales Representative.
+	  * Sales Representative or Company Agent
+	  */
+	public void setSalesRep_ID (int SalesRep_ID);
+
+	/** Get Sales Representative.
+	  * Sales Representative or Company Agent
+	  */
+	public int getSalesRep_ID();
+
+	public org.compiere.model.I_AD_User getSalesRep() throws RuntimeException;
+
     /** Column name StatementDate */
     public static final String COLUMNNAME_StatementDate = "StatementDate";
 
@@ -554,19 +620,6 @@ public interface I_T_Aging
 	  * Date of the statement
 	  */
 	public Timestamp getStatementDate();
-
-    /** Column name UUID */
-    public static final String COLUMNNAME_UUID = "UUID";
-
-	/** Set Immutable Universally Unique Identifier.
-	  * Immutable Universally Unique Identifier
-	  */
-	public void setUUID (String UUID);
-
-	/** Get Immutable Universally Unique Identifier.
-	  * Immutable Universally Unique Identifier
-	  */
-	public String getUUID();
 
     /** Column name Updated */
     public static final String COLUMNNAME_Updated = "Updated";
@@ -583,4 +636,17 @@ public interface I_T_Aging
 	  * User who updated this records
 	  */
 	public int getUpdatedBy();
+
+    /** Column name UUID */
+    public static final String COLUMNNAME_UUID = "UUID";
+
+	/** Set Immutable Universally Unique Identifier.
+	  * Immutable Universally Unique Identifier
+	  */
+	public void setUUID (String UUID);
+
+	/** Get Immutable Universally Unique Identifier.
+	  * Immutable Universally Unique Identifier
+	  */
+	public String getUUID();
 }

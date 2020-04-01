@@ -1016,6 +1016,28 @@ public class CAValidator implements ModelValidator
 		return "";
 	}
 	
+	private String factAcct_DeleteNullLines(PO A_PO)
+
+	{	
+		Doc doc = A_PO.getDoc();
+		String dateacct = "DateAcct";
+		String Documentno = "";
+		
+		String whereClause = "AD_Table_ID=? AND record_ID=?";
+		
+		ArrayList<Fact> facts = doc.getFacts();
+		// one fact per acctschema
+		for (Fact fact:facts)
+		{
+			for (FactLine fLine:fact.getLines())
+			{
+				if (fLine.getAmtSourceDr().compareTo(Env.ZERO)==0 &&  fLine.getAmtSourceCr().compareTo(Env.ZERO)==0)
+					fLine.deleteEx(true, A_PO.get_TrxName());
+			}
+		}		
+		return "";
+	}
+	
 	private String setOrderLineTax(PO A_PO) {
 
 		//import org.compoere.model.MProduct;
