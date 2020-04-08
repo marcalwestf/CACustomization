@@ -664,6 +664,8 @@ public class MProduction extends X_M_Production implements DocAction , DocumentR
 			tline.setQtyUsed(fline.getQtyUsed().negate());
 			tline.setReversalLine_ID(fline.getM_ProductionLine_ID());
 			tline.saveEx();
+			fline.setReversalLine_ID(tline.getM_ProductionLine_ID());
+			fline.saveEx();
 			//We need to copy MA
 			if (tline.getM_AttributeSetInstance_ID() == 0)
 			{
