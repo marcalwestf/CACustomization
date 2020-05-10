@@ -17,11 +17,15 @@
 
 package org.adempiere.process;
 
+import java.util.List;
+
 import org.adempiere.engine.CostEngineFactory;
 import org.compiere.model.MInOut;
 import org.compiere.model.MInvoiceLine;
 import org.compiere.model.MLandedCost;
 import org.compiere.model.MLandedCostAllocation;
+import org.compiere.model.Query;
+import org.compiere.util.DB;
 
 /** Generated Process for (SBP_GenerateLandedCost_InvoiceLine)
  *  @author ADempiere (generated) 
@@ -39,8 +43,7 @@ public class SBP_GenerateLandedCost_InvoiceLine extends SBP_GenerateLandedCost_I
 	protected String doIt() throws Exception
 	{ getSelectionKeys().stream().forEach(invoiceLineId -> {
         MInvoiceLine invoiceLine = new MInvoiceLine(getCtx(), invoiceLineId, get_TrxName());
-        MLandedCost landedCost = createLandedCost(invoiceLine);
-        landedCost.allocateCosts();  
+        String error = createLandedCost(invoiceLine);
         //if (landedCost.getC_InvoiceLine().getC_Invoice().getDocStatus().equals("CO"))
 		//	generateCostDetail(landedCost);	
     });
@@ -48,31 +51,42 @@ public class SBP_GenerateLandedCost_InvoiceLine extends SBP_GenerateLandedCost_I
 		return "";
 	}
 	
-	public MLandedCost createLandedCost(MInvoiceLine invoiceLine) {
-        MInOut document = new MInOut(getCtx(), getInOutId(), get_TrxName());
-        for (MLandedCostAllocation landedCostAllocation:MLandedCostAllocation.getOfInvoiceLine(getCtx(), 
-        		invoiceLine.get_ID(), get_TrxName())) {
-        	landedCostAllocation.deleteEx(true);
-        }
-        for (MLandedCost landedCost : MLandedCost.getLandedCosts(invoiceLine)){
-        	landedCost.deleteEx(true);
-        	        }
-        MLandedCost landedCost = new MLandedCost(getCtx(), 0, get_TrxName());
-        landedCost.setAD_Org_ID(document.getAD_Org_ID());
-        landedCost.setC_InvoiceLine_ID(invoiceLine.getC_InvoiceLine_ID());
-        landedCost.setM_InOut_ID(document.getM_InOut_ID());
-        landedCost.setDescription(document.getPOReference());
-        landedCost.setLandedCostDistribution(getLandedCostDistribution());
-        landedCost.setM_CostElement_ID(getCostElementId());
-        landedCost.setC_LandedCostType_ID(getLandedCostTypeId());        
+	public String createLandedCost(MInvoiceLine invoiceLine) {
+		List<MInOut> inOuts = new Query(getCtx(), MInOut.Table_Name, "user4_ID=? and docstatus = 'CO'", null)
+				.setOnlyActiveRecords(true)
+				.setParameters(getUser4Id())
+				.list();
+		for (MLandedCostAllocation landedCostAllocation:MLandedCostAllocation.getOfInvoiceLine(getCtx(), 
+				invoiceLine.get_ID(), get_TrxName())) {
+			String deleteMCostDetail = "Delete from m_CostDetail where c_LandedCostAllocation_ID=" + landedCostAllocation.getC_LandedCostAllocation_ID();
+			DB.executeUpdateEx(deleteMCostDetail, get_TrxName());
+			landedCostAllocation.deleteEx(true);
+		}
+		for (MLandedCost landedCost : MLandedCost.getLandedCosts(invoiceLine)){
+			landedCost.deleteEx(true);
+		}
+		
+		for (MInOut document:inOuts) {			
+			MLandedCost landedCost = new MLandedCost(getCtx(), 0, get_TrxName());
+			landedCost.setAD_Org_ID(document.getAD_Org_ID());
+			landedCost.setC_InvoiceLine_ID(invoiceLine.getC_InvoiceLine_ID());
+			landedCost.setM_InOut_ID(document.getM_InOut_ID());
+			landedCost.setDescription(document.getPOReference());
+			landedCost.setLandedCostDistribution(getLandedCostDistribution());
+			landedCost.setM_CostElement_ID(getCostElementId());
+			landedCost.setC_LandedCostType_ID(getLandedCostTypeId()); 
+			landedCost.saveEx();
+		}
 
-        landedCost.saveEx();
-        return landedCost;
+		invoiceLine.allocateLandedCosts();
+		if (invoiceLine.getParent().isProcessed())
+			generateCostDetail(invoiceLine);
+		return "";
 	}
 	
-	private void generateCostDetail(MLandedCost landedCost)
+	private void generateCostDetail(MInvoiceLine invoiceLine)
 	{
-		for (MLandedCostAllocation allocation : MLandedCostAllocation.getOfInvoiceLine(getCtx(), landedCost.getC_InvoiceLine_ID(), get_TrxName()))
+		for (MLandedCostAllocation allocation : MLandedCostAllocation.getOfInvoiceLine(getCtx(), invoiceLine.getC_InvoiceLine_ID(), get_TrxName()))
 		{
 			CostEngineFactory.getCostEngine(getAD_Client_ID()).createCostDetailForLandedCostAllocation(allocation);
 		}
