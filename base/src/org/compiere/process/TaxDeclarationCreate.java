@@ -1,3 +1,4 @@
+
 /******************************************************************************
  * Product: Adempiere ERP & CRM Smart Business Solution                       *
  * Copyright (C) 1999-2006 ComPiere, Inc. All Rights Reserved.                *
@@ -127,18 +128,46 @@ public class TaxDeclarationCreate extends TaxDeclarationCreateAbstract
 			taxDeclarationLine.setLine((m_noLines+1) * 10);
 			taxDeclarationLine.saveEx();
 			m_noLines++;
-			createtdlfactAcct(invoiceTax, invoice, taxDeclaration);
+			String sql = "SELECT * FROM Fact_Acct f"
+					+ " INNER JOIN c_Elementvalue ev on f.account_ID=ev.c_Elementvalue_ID "
+					+ " WHERE AD_Table_ID=? AND Record_ID=? AND C_Tax_ID is not null and postingType = 'A'" 
+					+ " AND ev.accountType in ('A','L')";
+			PreparedStatement pstmt = null;
+			ResultSet rs = null;
+			try
+			{
+				pstmt = DB.prepareStatement (sql, null);
+				pstmt.setInt (1, MInvoice.Table_ID);
+				pstmt.setInt (2, invoice.getC_Invoice_ID());
+				rs = pstmt.executeQuery ();
+				while (rs.next ())
+				{
+					MFactAcct fact = new MFactAcct(getCtx(), rs, null);	//	no lock
+					MTaxDeclarationAcct tda = new MTaxDeclarationAcct (taxDeclaration, fact);
+					tda.setLine((m_noAccts+1) * 10);
+					if (tda.save())
+						m_noAccts++;
+				}
+			}
+			catch (Exception e)
+			{
+				log.log (Level.SEVERE, sql, e);
+			}
+			finally
+			{
+				DB.close(rs, pstmt);
+				rs = null; pstmt = null;
+			}
 			
 		}
 		noInvoices ++;
 	}	//	invoice
 	
 	private void createtdlfactAcct(MInvoiceTax invoiceTax, MInvoice invoice, MTaxDeclaration taxDeclaration) {
-		String whereClause  = " record_ID=? and ad_table_ID=? and c_Tax_ID=? and line_ID is null";
+		String whereClause  = " record_ID=? and ad_table_ID=? " ;
 		ArrayList<Object> params = new ArrayList<>();
 		params.add(invoice.getC_Invoice_ID());
 		params.add(MInvoice.Table_ID);
-		params.add(invoiceTax.getC_Tax_ID());
 		List<MFactAcct> factAccts = new Query(getCtx(), MFactAcct.Table_Name, whereClause, get_TrxName())
 				.setParameters(params)
 				.setClient_ID()
