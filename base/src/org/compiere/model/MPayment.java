@@ -1710,10 +1710,11 @@ public final class MPayment extends X_C_Payment
 				if (length > 0)		//	get last invoice
 					setC_Invoice_ID (invoices[length-1].getC_Invoice_ID());
 				//
-				/*
-				 * if (getC_Invoice_ID() == 0) //es soll nicht automatisch ausgeliefert werden {
-				 * processMsg = "@NotFound@ @C_Invoice_ID@"; return DocAction.STATUS_Invalid; }
-				 */
+				if (getC_Invoice_ID() == 0)
+				{
+					processMsg = "@NotFound@ @C_Invoice_ID@";
+					return DocAction.STATUS_Invalid;
+				}
 			}	//	WaitingPayment
 		}
 		
@@ -2133,10 +2134,8 @@ public final class MPayment extends X_C_Payment
 			+ " psl.PayAmt, psl.DiscountAmt, psl.DifferenceAmt, psl.OpenAmt "
 			+ "FROM C_PaySelectionLine psl"
 			+ " INNER JOIN C_PaySelectionCheck psc ON (psl.C_PaySelectionCheck_ID=psc.C_PaySelectionCheck_ID) "
-			+ " INNER JOIN C_Payment p ON (psc.c_Payment_ID=p.C_Payment_ID) "
 			//	Validate if have invoice
-			+ "WHERE psc.C_Payment_ID=? AND psl.C_Invoice_ID IS NOT NULL "
-			+ " AND (p.isreceipt = 'N' OR (p.isreceipt = 'Y' and psc.paymentrule<>'S'))" ;
+			+ "WHERE psc.C_Payment_ID=? AND psl.C_Invoice_ID IS NOT NULL";
 		PreparedStatement pstmt = null;
 		ResultSet rs = null;
 		try

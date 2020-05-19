@@ -23,8 +23,10 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Level;
 import java.util.regex.Pattern;
 
@@ -1570,9 +1572,9 @@ public class MOrder extends X_C_Order implements DocAction
 	{
 		log.fine("");
 		//	Delete Taxes
-		DB.executeUpdateEx("DELETE C_OrderTax WHERE C_Order_ID=" + getC_Order_ID(), get_TrxName());
+		int no = DB.executeUpdateEx("DELETE C_OrderTax WHERE C_Order_ID=" + getC_Order_ID(), get_TrxName());
 		m_taxes = null;
-		
+
 		//	Lines
 		BigDecimal totalLines = Env.ZERO;
 		ArrayList<Integer> taxList = new ArrayList<Integer>();
@@ -1580,64 +1582,91 @@ public class MOrder extends X_C_Order implements DocAction
 		for (int i = 0; i < lines.length; i++)
 		{
 			MOrderLine line = lines[i];
-			Integer taxID = new Integer(line.getC_Tax_ID());
-			if (!taxList.contains(taxID))
+			if (!taxList.contains(line.getC_Tax_ID()))
 			{
-				MOrderTax oTax = MOrderTax.get (line, getPrecision(), 
-					false, get_TrxName());	//	current Tax
-				oTax.setIsTaxIncluded(isTaxIncluded());
-				if (!oTax.calculateTaxFromLines())
-					return false;
-				if (!oTax.save(get_TrxName()))
-					return false;
-				taxList.add(taxID);
+				MOrderTax orderTax = MOrderTax.get (line, getPrecision(), false, get_TrxName()); //	current Tax
+				if (orderTax != null)
+				{
+					orderTax.setIsTaxIncluded(isTaxIncluded());
+					if (!orderTax.calculateTaxFromLines())
+						return false;
+					orderTax.saveEx();
+					taxList.add(line.getC_Tax_ID());
+				}
 			}
 			totalLines = totalLines.add(line.getLineNetAmt());
 		}
-		
+
 		//	Taxes
-		BigDecimal grandTotal = totalLines;
-		MOrderTax[] taxes = getTaxes(true);
-		for (int i = 0; i < taxes.length; i++)
-		{
-			MOrderTax oTax = taxes[i];
-			MTax tax = oTax.getTax();
-			if (tax.isSummary())
-			{
-				MTax[] cTaxes = tax.getChildTaxes(false);
-				for (int j = 0; j < cTaxes.length; j++)
-				{
-					MTax cTax = cTaxes[j];
-					BigDecimal taxAmt = cTax.calculateTax(oTax.getTaxBaseAmt(), isTaxIncluded(), getPrecision());
+		AtomicReference<BigDecimal> grandTotal = new AtomicReference<>(totalLines);
+		Arrays.stream(getTaxes(true)).forEach(orderTax -> {
+			MTax taxParent = orderTax.getTax();
+			if (taxParent.isSummary()) {
+				Arrays.stream(taxParent.getChildTaxes(false)).forEach(taxChild -> {
+					boolean documentLevel = taxChild.isDocumentLevel();
+					AtomicReference<BigDecimal> taxBaseAmt = new AtomicReference(Env.ZERO);
+					AtomicReference<BigDecimal> taxAmt = new AtomicReference(Env.ZERO);
+					Arrays.stream(getLines())
+							.filter(orderLine -> orderLine.getC_Tax_ID() == taxParent.get_ID())
+							.forEach(orderLine -> {
+								//	BaseAmt
+								BigDecimal baseAmt = getLineNetAmt(orderLine, taxChild);
+								taxBaseAmt.getAndUpdate(taxBaseAmount -> taxBaseAmount.add(baseAmt));
+								//	TaxAmt
+								BigDecimal amt = Env.ZERO;
+								if (taxChild.get_ValueAsBoolean("isReferencedToStandardTax"))
+								amt = taxChild.calculateTax(baseAmt, false, getPrecision());
+								else
+									amt = taxChild.calculateTax(baseAmt, isTaxIncluded(), getPrecision());
+								if (amt == null)
+									amt = Env.ZERO;
+								if (!documentLevel && amt.signum() != 0)    //	manually entered
+									;
+								else if (documentLevel || baseAmt.signum() == 0)
+									amt = Env.ZERO;
+
+								BigDecimal finalAmt = amt;
+								taxAmt.getAndUpdate(taxAmount -> taxAmount.add(finalAmt));
+							});
+
+					//	Calculate Tax
+					Boolean isTaxIncluded = isTaxIncluded();
+					if (documentLevel || taxAmt.get().signum() == 0) {
+						
+						if (taxChild.get_ValueAsBoolean("isReferencedToStandardTax") && isTaxIncluded())
+							isTaxIncluded = false;
+						taxAmt.set(taxChild.calculateTax(taxBaseAmt.get(), isTaxIncluded, getPrecision()));						
+					}
+						
+					MOrderTax newOrderTax = new MOrderTax(getCtx(), 0, get_TrxName());
+					newOrderTax.setClientOrg(this);
+					newOrderTax.setC_Order_ID(getC_Order_ID());
+					newOrderTax.setC_Tax_ID(taxChild.getC_Tax_ID());
+					newOrderTax.setPrecision(getPrecision());
+					newOrderTax.setIsTaxIncluded(isTaxIncluded());
+
+					//	Set Base
+					if (isTaxIncluded)
+						newOrderTax.setTaxBaseAmt (taxBaseAmt.get().subtract(taxAmt.get()));
+					else
+						newOrderTax.setTaxBaseAmt (taxBaseAmt.get());
+
+					newOrderTax.setTaxAmt(taxAmt.get());
+					newOrderTax.saveEx(get_TrxName());
 					//
-					MOrderTax newOTax = new MOrderTax(getCtx(), 0, get_TrxName());
-					newOTax.setClientOrg(this);
-					newOTax.setC_Order_ID(getC_Order_ID());
-					newOTax.setC_Tax_ID(cTax.getC_Tax_ID());
-					newOTax.setPrecision(getPrecision());
-					newOTax.setIsTaxIncluded(isTaxIncluded());
-					newOTax.setTaxBaseAmt(oTax.getTaxBaseAmt());
-					newOTax.setTaxAmt(taxAmt);
-					if (!newOTax.save(get_TrxName()))
-						return false;
-					//
-					if (!isTaxIncluded())
-						grandTotal = grandTotal.add(taxAmt);
-				}
-				if (!oTax.delete(true, get_TrxName()))
-					return false;
-				if (!oTax.save(get_TrxName()))
-					return false;
-			}
-			else
-			{
+					if (!isTaxIncluded)
+						grandTotal.getAndUpdate(total -> total.add(taxAmt.get()));
+
+				});
+				orderTax.deleteEx(true, get_TrxName());
+			} else {
 				if (!isTaxIncluded())
-					grandTotal = grandTotal.add(oTax.getTaxAmt());
+					grandTotal.getAndUpdate(total -> total.add(orderTax.getTaxAmt()));
 			}
-		}		
+		});
 		//
 		setTotalLines(totalLines);
-		setGrandTotal(grandTotal);
+		setGrandTotal(grandTotal.get());
 		return true;
 	}	//	calculateTaxTotal
 	
@@ -1733,7 +1762,7 @@ public class MOrder extends X_C_Order implements DocAction
 		if (MDocType.DOCSUBTYPESO_OnCreditOrder.equals(DocSubTypeSO)		//	(W)illCall(I)nvoice
 			|| MDocType.DOCSUBTYPESO_WarehouseOrder.equals(DocSubTypeSO)	//	(W)illCall(P)ickup	
 			|| MDocType.DOCSUBTYPESO_POSOrder.equals(DocSubTypeSO)			//	(W)alkIn(R)eceipt
-			//|| MDocType.DOCSUBTYPESO_PrepayOrder.equals(DocSubTypeSO) //es soll nicht automatisch ausgeliefert werden
+			|| MDocType.DOCSUBTYPESO_PrepayOrder.equals(DocSubTypeSO) //es soll nicht automatisch ausgeliefert werden
 			) 
 		{
 			if (!DELIVERYRULE_Force.equals(getDeliveryRule()))
@@ -1752,7 +1781,7 @@ public class MOrder extends X_C_Order implements DocAction
 		//	Create SO Invoice - Always invoice complete Order
 		if ( MDocType.DOCSUBTYPESO_POSOrder.equals(DocSubTypeSO)
 			|| MDocType.DOCSUBTYPESO_OnCreditOrder.equals(DocSubTypeSO) 	
-			//|| MDocType.DOCSUBTYPESO_PrepayOrder.equals(DocSubTypeSO) //es soll nicht automatisch fakturiert werden
+			|| MDocType.DOCSUBTYPESO_PrepayOrder.equals(DocSubTypeSO) //es soll nicht automatisch fakturiert werden
 			) 
 		{
 			MInvoice invoice = createInvoice (dt, shipment, realTimePOS ? null : getDateOrdered());
@@ -2545,4 +2574,19 @@ public class MOrder extends X_C_Order implements DocAction
 			}
 		}
 	}*/
+	
+
+	public BigDecimal getLineNetAmt (MOrderLine orderLine, MTax taxChild)	{
+		BigDecimal baseAmt = orderLine.getLineNetAmt();
+		if (taxChild.get_ValueAsBoolean("isReferencedToStandardTax") && isTaxIncluded()) {
+			MTax stdTax = new MTax (getCtx(), 
+					((MTaxCategory) orderLine.getProduct().getC_TaxCategory()).getDefaultTax().getC_Tax_ID(), 
+					get_TrxName());
+
+			BigDecimal taxStdAmt = (stdTax.calculateTax(baseAmt, isTaxIncluded(), getPrecision()));
+			baseAmt = baseAmt.subtract(taxStdAmt);
+		}
+		
+		return baseAmt;
+	}
 }	//	MOrder
