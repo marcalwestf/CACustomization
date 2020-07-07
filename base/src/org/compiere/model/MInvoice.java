@@ -1388,6 +1388,7 @@ public class MInvoice extends X_C_Invoice implements DocAction , DocumentReversa
 			processMsg = "Error calculating Tax";
 			return DocAction.STATUS_Invalid;
 		}
+		
 
 		createPaySchedule();
 
@@ -1525,6 +1526,8 @@ public class MInvoice extends X_C_Invoice implements DocAction , DocumentReversa
 	 */
 	public boolean calculateTaxTotal()
 	{
+		if(getDocStatus().equals(MInvoice.DOCSTATUS_InProgress) && getDocAction().equals(MInvoice.DOCACTION_Complete))
+			return true;
 		log.fine("");
 		//	Delete Taxes
 		DB.executeUpdateEx("DELETE C_InvoiceTax WHERE C_Invoice_ID=" + getC_Invoice_ID(), get_TrxName());
@@ -1565,10 +1568,14 @@ public class MInvoice extends X_C_Invoice implements DocAction , DocumentReversa
 							.filter(invoiceLine -> invoiceLine.getC_Tax_ID() == taxParent.get_ID())
 							.forEach(invoiceLine -> {
 								//	BaseAmt
-								BigDecimal baseAmt = invoiceLine.getLineNetAmt();
+								BigDecimal baseAmt = getLineNetAmt(invoiceLine, taxChild);
 								taxBaseAmt.getAndUpdate(taxBaseAmount -> taxBaseAmount.add(baseAmt));
 								//	TaxAmt
-								BigDecimal amt = taxChild.calculateTax(baseAmt, isTaxIncluded(), getPrecision());
+								BigDecimal amt = Env.ZERO;
+								if (taxChild.get_ValueAsBoolean("isReferencedToStandardTax"))
+								amt = taxChild.calculateTax(baseAmt, false, getPrecision());
+								else
+									amt = taxChild.calculateTax(baseAmt, isTaxIncluded(), getPrecision());
 								if (amt == null)
 									amt = Env.ZERO;
 								if (!documentLevel && amt.signum() != 0)    //	manually entered
@@ -1581,9 +1588,11 @@ public class MInvoice extends X_C_Invoice implements DocAction , DocumentReversa
 							});
 
 					//	Calculate Tax
-					if (documentLevel || taxAmt.get().signum() == 0)
-						taxAmt.set(taxChild.calculateTax(taxBaseAmt.get(), isTaxIncluded(), getPrecision()));
-
+					Boolean isTaxIncluded = isTaxIncluded();
+					if (taxChild.get_ValueAsBoolean("isReferencedToStandardTax") && isTaxIncluded())
+						isTaxIncluded = false;
+					if (documentLevel || taxAmt.get().signum() == 0)						
+							taxAmt.set(taxChild.calculateTax(taxBaseAmt.get(), isTaxIncluded, getPrecision()));	
 					MInvoiceTax newITax = new MInvoiceTax(getCtx(), 0, get_TrxName());
 					newITax.setClientOrg(this);
 					newITax.setC_Invoice_ID(getC_Invoice_ID());
@@ -1592,15 +1601,16 @@ public class MInvoice extends X_C_Invoice implements DocAction , DocumentReversa
 					newITax.setIsTaxIncluded(isTaxIncluded());
 
 					//	Set Base
-					if (isTaxIncluded())
+					if (isTaxIncluded)
 						newITax.setTaxBaseAmt (taxBaseAmt.get().subtract(taxAmt.get()));
-					else
-						newITax.setTaxBaseAmt (taxBaseAmt.get());
+				else
+					newITax.setTaxBaseAmt (taxBaseAmt.get());
+
 
 					newITax.setTaxAmt(taxAmt.get());
 					newITax.saveEx(get_TrxName());
 					//
-					if (!isTaxIncluded())
+					if (!isTaxIncluded)
 						grandTotal.getAndUpdate(total -> total.add(taxAmt.get()));
 
 				});
@@ -2235,6 +2245,7 @@ public class MInvoice extends X_C_Invoice implements DocAction , DocumentReversa
 			return null;
 		}
 		reversal.setC_Payment_ID(0);
+		reversal.setIsPaid(true);
 		reversal.closeIt();
 		reversal.setProcessing (false);
 		reversal.setDocStatus(DOCSTATUS_Reversed);
@@ -2257,9 +2268,10 @@ public class MInvoice extends X_C_Invoice implements DocAction , DocumentReversa
 				});
 		setProcessed(true);
 		setReversal_ID(reversal.getC_Invoice_ID());
-		setDocStatus(DOCSTATUS_Reversed);	//	may come from void
+		setDocStatus(DOCSTATUS_Voided);	//	may come from void
 		setDocAction(DOCACTION_None);
 		setC_Payment_ID(0);
+		setIsPaid(true);
 
 		//	Create Allocation
 		MAllocationHdr allocationHdr = new MAllocationHdr(getCtx(), false, reversalDate,
@@ -2527,7 +2539,7 @@ public class MInvoice extends X_C_Invoice implements DocAction , DocumentReversa
 			return DOCSTATUS_Invalid;
 		paymentCash.saveEx();
 		MBankStatement.addPayment(paymentCash);
-		return "";
+		return null;
 	}
     /**
      * 	Create Allocation of the invoice to prepayments of the same Order
@@ -2589,6 +2601,20 @@ public class MInvoice extends X_C_Invoice implements DocAction , DocumentReversa
 				.setParameters(c_order_id)
 				.list();
 		return list;
+	}
+	
+	public BigDecimal getLineNetAmt (MInvoiceLine invoiceLine, MTax taxChild)	{
+		BigDecimal baseAmt = invoiceLine.getLineNetAmt();
+		if (taxChild.get_ValueAsBoolean("isReferencedToStandardTax") && isTaxIncluded()) {
+			MTax stdTax = new MTax (getCtx(), 
+					((MTaxCategory) invoiceLine.getProduct().getC_TaxCategory()).getDefaultTax().getC_Tax_ID(), 
+					get_TrxName());
+
+			BigDecimal taxStdAmt = (stdTax.calculateTax(baseAmt, isTaxIncluded(), getPrecision()));
+			baseAmt = baseAmt.subtract(taxStdAmt);
+		}
+		
+		return baseAmt;
 	}
 
 

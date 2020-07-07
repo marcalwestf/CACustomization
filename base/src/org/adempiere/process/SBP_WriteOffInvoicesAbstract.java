@@ -17,6 +17,8 @@
 
 package org.adempiere.process;
 
+import java.math.BigDecimal;
+import java.sql.Timestamp;
 import org.compiere.process.SvrProcess;
 
 /** Generated Process for (SBP_WriteOffInvoices)
@@ -30,9 +32,54 @@ public abstract class SBP_WriteOffInvoicesAbstract extends SvrProcess {
 	private static final String NAME_FOR_PROCESS = "SBP_WriteOffInvoices";
 	/** Process Id 	*/
 	private static final int ID_FOR_PROCESS = 54386;
+	/**	Parameter Name for Account Date	*/
+	public static final String DATEACCT = "DateAcct";
+	/**	Parameter Name for Charge	*/
+	public static final String C_CHARGE_ID = "C_Charge_ID";
+	/**	Parameter Name for Amount	*/
+	public static final String AMOUNT = "Amount";
+	/**	Parameter Value for Account Date	*/
+	private Timestamp dateAcct;
+	/**	Parameter Value for Charge	*/
+	private int charge;
+	/**	Parameter Value for Amount	*/
+	private BigDecimal amount;
 
 	@Override
 	protected void prepare() {
+		dateAcct = getParameterAsTimestamp(DATEACCT);
+		charge = getParameterAsInt(C_CHARGE_ID);
+		amount = getParameterAsBigDecimal(AMOUNT);
+	}
+
+	/**	 Getter Parameter Value for Account Date	*/
+	protected Timestamp getDateAcct() {
+		return dateAcct;
+	}
+
+	/**	 Setter Parameter Value for Account Date	*/
+	protected void setDateAcct(Timestamp dateAcct) {
+		this.dateAcct = dateAcct;
+	}
+
+	/**	 Getter Parameter Value for Charge	*/
+	protected int getCharge() {
+		return charge;
+	}
+
+	/**	 Setter Parameter Value for Charge	*/
+	protected void setCharge(int charge) {
+		this.charge = charge;
+	}
+
+	/**	 Getter Parameter Value for Amount	*/
+	protected BigDecimal getAmount() {
+		return amount;
+	}
+
+	/**	 Setter Parameter Value for Amount	*/
+	protected void setAmount(BigDecimal amount) {
+		this.amount = amount;
 	}
 
 	/**	 Getter Parameter Value for Process ID	*/

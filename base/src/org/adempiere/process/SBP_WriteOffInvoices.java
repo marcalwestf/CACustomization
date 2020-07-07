@@ -18,11 +18,17 @@
 package org.adempiere.process;
 
 import java.math.BigDecimal;
+import java.sql.Timestamp;
+import java.util.logging.Level;
 
 import org.adempiere.exceptions.AdempiereException;
+import org.compiere.model.MAllocationHdr;
+import org.compiere.model.MAllocationLine;
 import org.compiere.model.MCostDetail;
 import org.compiere.model.MInvoice;
 import org.compiere.model.MInvoiceLine;
+import org.compiere.model.MPayment;
+import org.compiere.process.DocAction;
 import org.compiere.process.ProcessInfo;
 import org.compiere.util.Env;
 import org.eevolution.service.dsl.ProcessBuilder;
@@ -33,6 +39,9 @@ import org.eevolution.service.dsl.ProcessBuilder;
  */
 public class SBP_WriteOffInvoices extends SBP_WriteOffInvoicesAbstract
 {
+
+	/**	Allocation Hdr			*/
+	private MAllocationHdr allocation = null;
 	@Override
 	protected void prepare()
 	{
@@ -51,7 +60,7 @@ public class SBP_WriteOffInvoices extends SBP_WriteOffInvoicesAbstract
 	}
 	
 	private String WriteOffInvoice(MInvoice invoice) {
-		ProcessInfo WriteOffInvoice = ProcessBuilder.create(getCtx())
+		/*ProcessInfo WriteOffInvoice = ProcessBuilder.create(getCtx())
                 .process(171)
                 .withTitle("WriteOffInvoice")
                 .withParameter(MInvoice.COLUMNNAME_C_Invoice_ID, invoice.getC_Invoice_ID())
@@ -62,7 +71,72 @@ public class SBP_WriteOffInvoices extends SBP_WriteOffInvoicesAbstract
                 .execute(get_TrxName());
 		if (WriteOffInvoice.isError())
 			throw new AdempiereException(WriteOffInvoice.getSummary());
+		*/
+		writeOff(invoice.getC_Invoice_ID(), invoice.getDocumentNo(), invoice.getDateAcct(), invoice.getC_Currency_ID(), getAmount());
 	 
 		return "";
 	}
+	
+	private boolean writeOff (int invoiceId, String documentNo, Timestamp dateInvoiced,
+			int currencyId, BigDecimal openAmt)
+		{
+			
+			
+			//	Invoice
+			MInvoice invoice = new MInvoice(getCtx(), invoiceId, get_TrxName());
+			if (!invoice.isSOTrx()) {
+				openAmt = openAmt.negate();				
+			}
+			
+			//	Allocation
+			if (allocation == null || currencyId != allocation.getC_Currency_ID())
+			{
+				processAllocation();
+				allocation = new MAllocationHdr(getCtx(), true, 
+					getDateAcct(), currencyId,
+					getProcessInfo().getTitle() + " #" + documentNo, get_TrxName());
+				allocation.setAD_Org_ID(invoice.getAD_Org_ID());
+				if (!allocation.save())
+				{
+					log.log(Level.SEVERE, "Cannot create allocation header");
+					return false;
+				}
+			}
+
+			//	Line
+			MAllocationLine allocationLine = null;
+			allocationLine = new MAllocationLine (allocation, Env.ZERO,
+					Env.ZERO, openAmt, Env.ZERO);
+			allocationLine.setC_Invoice_ID(invoiceId);
+			allocationLine.setC_Charge_ID(getCharge());
+			if (allocationLine.save())
+			{
+				addLog(invoiceId, dateInvoiced, openAmt, documentNo);
+				return true;
+			}
+			//	Error
+			log.log(Level.SEVERE, "Cannot create allocation line for C_Invoice_ID=" + invoiceId);
+			return false;
+		}	//	writeOff
+		
+		/**
+		 * 	Process Allocation
+		 *	@return true if processed
+		 */
+		private boolean processAllocation()
+		{
+			if (allocation == null)
+				return true;
+			
+			//	Process It
+			if (allocation.processIt(DocAction.ACTION_Complete) &&  allocation.save())
+			{
+				allocation = null;
+				return true;
+			}
+			//
+			allocation = null;
+			return false;
+		}	//	processAllocation
+
 }

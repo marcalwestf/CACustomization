@@ -18,20 +18,26 @@ package org.adempiere.model;
 
 
 import java.math.BigDecimal;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
 import java.util.GregorianCalendar;
 import java.util.List;
+import java.util.Properties;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
+import java.util.logging.Level;
 
 import org.adempiere.exceptions.AdempiereException;
 import org.compiere.acct.Doc;
 import org.compiere.acct.Fact;
 import org.compiere.acct.FactLine;
+import org.compiere.model.I_C_InvoiceLine;
 import org.compiere.model.I_C_PaySelection;
 import org.compiere.model.MAllocationHdr;
 import org.compiere.model.MBPartner;
@@ -39,17 +45,20 @@ import org.compiere.model.MBank;
 import org.compiere.model.MBankAccount;
 import org.compiere.model.MBankStatement;
 import org.compiere.model.MBankStatementLine;
+import org.compiere.model.MCharge;
 import org.compiere.model.MClient;
 import org.compiere.model.MCommissionAmt;
 import org.compiere.model.MCommissionDetail;
 import org.compiere.model.MConversionRate;
 import org.compiere.model.MDocType;
+import org.compiere.model.MElementValue;
 import org.compiere.model.MFactAcct;
 import org.compiere.model.MInOut;
 import org.compiere.model.MInOutLine;
 import org.compiere.model.MInventory;
 import org.compiere.model.MInvoice;
 import org.compiere.model.MInvoiceLine;
+import org.compiere.model.MInvoiceTax;
 import org.compiere.model.MMovement;
 import org.compiere.model.MOrder;
 import org.compiere.model.MOrderLine;
@@ -58,15 +67,23 @@ import org.compiere.model.MPaySelectionCheck;
 import org.compiere.model.MPaySelectionLine;
 import org.compiere.model.MPayment;
 import org.compiere.model.MPaymentBatch;
+import org.compiere.model.MPaymentTerm;
+import org.compiere.model.MProduct;
 import org.compiere.model.MProduction;
 import org.compiere.model.MProductionLine;
 import org.compiere.model.MProject;
 import org.compiere.model.MProjectIssue;
 import org.compiere.model.MProjectLine;
+import org.compiere.model.MRMA;
+import org.compiere.model.MRMALine;
 import org.compiere.model.MRequisition;
+import org.compiere.model.MStorage;
+import org.compiere.model.MTax;
+import org.compiere.model.MTaxCategory;
 import org.compiere.model.MTaxDeclarationLine;
 import org.compiere.model.MTimeExpense;
 import org.compiere.model.MTimeExpenseLine;
+import org.compiere.model.MUOM;
 import org.compiere.model.ModelValidationEngine;
 import org.compiere.model.ModelValidator;
 import org.compiere.model.PO;
@@ -74,10 +91,12 @@ import org.compiere.model.Query;
 import org.compiere.model.X_C_Payment;
 import org.compiere.process.DocAction;
 import org.compiere.sqlj.Adempiere;
+import org.compiere.util.CLogMgt;
 import org.compiere.util.CLogger;
 import org.compiere.util.DB;
 import org.compiere.util.Env;
 import org.compiere.util.Language;
+import org.compiere.util.Msg;
 import org.eevolution.model.MDDOrder;
 import org.eevolution.model.MHRAttribute;
 import org.eevolution.model.MHRConcept;
@@ -130,11 +149,21 @@ public class CAValidator implements ModelValidator
 		engine.addModelChange(MTimeExpenseLine.Table_Name, this);
 		engine.addModelChange(MWMInOutBoundLine.Table_Name, this);
 		engine.addModelChange(MPaySelectionLine.Table_Name, this);
+		engine.addModelChange(MInvoiceTax.Table_Name, this);		
+		engine.addModelChange(MPaymentTerm.Table_Name, this);
+		engine.addModelChange(MTax.Table_Name, this);
+		engine.addModelChange(MTaxCategory.Table_Name, this);
+		engine.addModelChange(MUOM.Table_Name, this);
+		engine.addModelChange(MProduct.Table_Name, this);
+		engine.addModelChange(MCharge.Table_Name, this);
+		engine.addModelChange(MElementValue.Table_Name, this);
+		engine.addModelChange(MDocType.Table_Name, this);
+		engine.addModelChange(MAllocationHdr.Table_Name, this);
 		
+
 		engine.addDocValidate(MPaySelection.Table_Name	, this);
 		engine.addDocValidate(MBankStatement.Table_Name, this);
 		engine.addDocValidate(MOrder.Table_Name, this);
-		engine.addDocValidate(MInvoice.Table_Name, this);
 		engine.addDocValidate(MPayment.Table_Name, this);
 		engine.addDocValidate(MTimeExpense.Table_Name, this);
 		engine.addDocValidate(MMovement.Table_Name, this);
@@ -143,6 +172,7 @@ public class CAValidator implements ModelValidator
 		engine.addDocValidate(MProduction.Table_Name, this);
 		engine.addDocValidate(MAllocationHdr.Table_Name, this);
 		engine.addDocValidate(MInOut.Table_Name, this);
+		engine.addDocValidate(MInvoice.Table_Name, this);
 		
 		
 		//	Documents to be monitored
@@ -168,11 +198,14 @@ public class CAValidator implements ModelValidator
 			if (po.get_TableName().equals(MOrder.Table_Name)) {
 				error = User4Mandatory(po);
 				if (po.is_ValueChanged(MOrder.COLUMNNAME_C_BPartner_ID))
-					error = upDateControlCredito(po);
+					//error = upDateControlCredito(po)
+					;
 				
 			}
-			if(po.get_TableName().equals(MInvoice.Table_Name))
-				error = InvoiceTypeTaxDeclaration(po);		
+			if(po.get_TableName().equals(MInvoice.Table_Name)) {
+
+				error = InvoiceTypeTaxDeclaration(po);	
+			}
 			if (po.get_TableName().equals(MTimeExpenseLine.Table_Name))
 				error = calculateLabourCost(po);
 			if (po.get_TableName().equals(MOrderLine.Table_Name)
@@ -184,22 +217,36 @@ public class CAValidator implements ModelValidator
 
 			if (po.get_TableName().equals(MInvoiceLine.Table_Name)
 					&& (po.is_ValueChanged("M_Product_ID") || po.is_ValueChanged("C_Charge_ID")))
+			{
 				error = setInvoiceLineTax(po);
+				error = UpdateCreditMemoLine(po);
+			}
 			 if (po.get_TableName().equals(MWMInOutBoundLine.Table_Name)) {
-				 error = updateM_Locator_TO(po);
-				 
+				 error = updateM_Locator_TO(po);					 
 			 }
 			//if (po.get_TableName().equals(MTaxDeclarationLine.Table_Name) && type == ModelValidator.TYPE_BEFORE_NEW)
 			//	error = updateTaxDeclarationLIne(po);
+			 if (po.get_TableName().equals(MPayment.Table_Name)) {
+				 error = UpdatePaymentWithholing(po);
+			 }
+			 if (po instanceof MInvoiceTax) {
+				 error = controlInvoiceTax(po);
+			 }
 		}
 
 		if (type == ModelValidator.TYPE_AFTER_CHANGE ){
 			if (po.get_TableName().equals(MOrder.Table_Name))
 				error = updateOrderLines(po);
-			if(po.get_TableName().equals(MInvoice.Table_Name))
+			if(po.get_TableName().equals(MInvoice.Table_Name)) {
 				error = updateInvoiceLines(po);	
+				
+			}
 			if (po.get_TableName().equals(MCommissionDetail.Table_Name)) {
 				error = commissionAmtUpdate(po);
+			}
+			if (po instanceof MProduct || po instanceof MCharge || po instanceof MDocType || po instanceof MUOM
+					|| po instanceof MElementValue || po instanceof MTax || po instanceof MTaxCategory || po instanceof MPaymentTerm) {
+				error = updateTranslation(po);
 			}
 			
 		}
@@ -214,6 +261,11 @@ public class CAValidator implements ModelValidator
 		if (type == ModelValidator.TYPE_BEFORE_CHANGE && po.get_TableName().equals(MProductionLine.Table_Name))
 			if (po.is_ValueChanged(MProductionLine.COLUMNNAME_QtyUsed)){
 			error = productionLineUpdateMovementQtyFromQtyUsed(po);
+		}
+		
+		if (type == ModelValidator.TYPE_BEFORE_DELETE) {
+			if (po instanceof MAllocationHdr)
+				error = allocationHdrBeforeDelete(po);
 		}
 		
 		
@@ -763,6 +815,10 @@ public class CAValidator implements ModelValidator
         		error = PaymentAutoReconcile(po);
         	if (po instanceof MTimeExpense)
         		error = TimeExpenseReportCreateProjectIssue(po);
+        	if (po instanceof MOrder)
+        		error = updateUser4Order(po);
+        	if (po instanceof MInOut)
+        		error = updateUser4MaterialReceipt(po);
         }
         if (ModelValidator.TIMING_AFTER_PREPARE == timing) {
         	if (po instanceof MBankStatement) {
@@ -782,9 +838,20 @@ public class CAValidator implements ModelValidator
         	//error = factAcct_UpdateDocumentNO(po)
         		;
         }
+        if (ModelValidator.DOCTIMING_BEFORE_PREPARE == timing) {
+        	if (po instanceof MInvoice) {
+
+				error = UpdateCreditMemo(po);
+        	}
+        }
         if (ModelValidator.TIMING_BEFORE_VOID == timing) {
         	if (po instanceof MPaySelection)
         		error = voidIncludedPayments(po);
+        }
+        
+        if (ModelValidator.TIMING_BEFORE_COMPLETE == timing) {
+        	if (po instanceof MOrder)
+        		error = testQtyOnhand(po);
         }
         
 		return error;
@@ -1134,6 +1201,215 @@ public class CAValidator implements ModelValidator
 		else
 			invoiceLine.setC_Tax_ID(taxdefinition.getC_Tax_ID());
 		//
+		return "";
+	}
+	
+	private String UpdatePaymentWithholing(PO A_PO) {
+		return "";
+	}
+	
+
+	private String UpdateCreditMemo(PO A_PO) {
+		MInvoice invoice = (MInvoice)A_PO;
+		if (!invoice.getC_DocTypeTarget().getDocBaseType().equals(MDocType.DOCBASETYPE_ARCreditMemo)
+				|| invoice.getM_RMA_ID() ==0)
+			return "";
+		invoice.setPOReference(getInvoiceDocNo(invoice));
+		return "";
+	}
+	
+	private String UpdateCreditMemoLine(PO A_PO) {
+		MInvoiceLine invoiceLine = (MInvoiceLine)A_PO;
+		if (!invoiceLine.getC_Invoice().getC_DocTypeTarget().getDocBaseType().equals(MDocType.DOCBASETYPE_ARCreditMemo)
+				|| invoiceLine.getC_Invoice().getM_RMA_ID() ==0)
+			return "";
+		if (invoiceLine.getM_Product_ID() > 0)
+			invoiceLine.setDescription(invoiceLine.getM_Product().getValue() + ", " + invoiceLine.getM_Product().getName()
+					+ invoiceLine.getPriceActual().toString());
+		return "";
+	}
+	
+	private String getInvoiceDocNo(MInvoice invoice) {
+		String docNoList = "";
+		String dateList = "";
+		
+			String sql = "SELECT distinct iorg.documentno, iorg.dateInvoiced i FROM C_Invoice i " + 
+					" INNER JOIN C_InvoiceLine ivl on i.c_INvoice_ID=ivl.c_Invoice_ID " + 
+					" INNER JOIN C_OrderLine ol on ivl.C_OrderLine_ID=ol.c_OrderLine_ID " + 
+					" LEFT JOIN c_InvoiceLine il on il.c_OrderLIne_ID=ol.c_OrderLine_ID and il.c_INvoiceline_ID <> ivl.c_INvoiceline_ID " + 
+					" LEFT JOIN C_Invoice iorg on il.c_Invoice_ID=iorg.c_Invoice_ID\r\n" + 
+					" WHERE i.C_Invoice_ID=? and iorg.docstatus in ('CO','CL', 'VO')";
+			PreparedStatement pstmt = null;
+			try
+			{
+				pstmt = DB.prepareStatement(sql, invoice.get_TrxName());
+				pstmt.setInt(1, invoice.getC_Invoice_ID());
+				ResultSet rs = pstmt.executeQuery();
+				while (rs.next()) {
+					docNoList = docNoList + " " + rs.getString(1);
+					Timestamp date = rs.getTimestamp(2);
+					String stringDate = new SimpleDateFormat("dd/MM/yyyy").format(date); 
+					dateList = dateList + " " + stringDate;
+				}
+				rs.close();
+				pstmt.close();
+				pstmt = null;
+				if (docNoList == null)
+					docNoList = "";
+			}
+			catch (Exception e)
+			{
+				log.log(Level.SEVERE, "getName", e);
+			}
+			finally
+			{
+				try
+				{
+					if (pstmt != null)
+						pstmt.close ();
+				}
+				catch (Exception e)
+				{}
+				pstmt = null;
+			}
+		return docNoList + "," + dateList;
+	}
+	
+	private String controlInvoiceTax(PO po) {
+		MInvoiceTax invoiceTax = (MInvoiceTax)po;
+		if (invoiceTax.getC_Invoice().isSOTrx()==false)
+			return"";
+		boolean notcontrol = invoiceTax.getTaxAmt().signum()==0 || invoiceTax.getC_Invoice().getM_PriceList().isTaxIncluded()==true;
+		if (notcontrol)
+			return "";
+		MTax tax = (MTax)invoiceTax.getC_Tax();
+		BigDecimal taxAmt = tax.calculateTax(invoiceTax.getTaxBaseAmt(), invoiceTax.getC_Invoice().getM_PriceList().isTaxIncluded(), 
+				invoiceTax.getC_Invoice().getC_Currency().getStdPrecision());
+
+		
+		  BigDecimal difference = invoiceTax.getTaxAmt().subtract(taxAmt); 
+		  if
+		  (taxAmt.compareTo(invoiceTax.getTaxAmt()) != 0) {
+		  invoiceTax.setTaxAmt(taxAmt); 
+			/*
+			 * List<MInvoiceTax> invoiceTaxes = new Query(po.getCtx(),
+			 * MInvoiceTax.Table_Name, "C_Invoice_ID=?", po.get_TrxName())
+			 * .setOnlyActiveRecords(true) .setParameters(invoiceTax.getC_Invoice_ID())
+			 * .list(); BigDecimal totalAmt = Env.ZERO; for (MInvoiceTax
+			 * invoiceTax2:invoiceTaxes) { totalAmt =
+			 * totalAmt.add(invoiceTax2.getTaxAmt().add(invoiceTax2.getTaxBaseAmt())); }
+			 * MInvoice invoice = (MInvoice)invoiceTax.getC_Invoice();
+			 * invoice.setGrandTotal(totalAmt); invoice.saveEx();
+			 */
+		  } 
+		  return "";	 
+		
+	}
+
+	private String testQtyOnhand(PO po) {
+		MOrder order = (MOrder)po;
+		if (!order.isSOTrx())
+			return "";
+		String error = "";
+		Boolean nottest = (order.getC_DocType().getDocSubTypeSO().equals(MOrder.DocSubTypeSO_RMA) ||
+				order.getC_DocType().getDocSubTypeSO().equals(MOrder.DocSubTypeSO_Standard) );
+		if (nottest)
+			return "";
+		StringBuffer sql = new StringBuffer("SELECT COALESCE(SUM(s.QtyOnHand),0)")
+				.append(" FROM M_Storage s")
+				.append(" WHERE s.M_Product_ID=?");
+		sql.append(" AND EXISTS (SELECT 1 FROM M_Locator l WHERE s.M_Locator_ID=l.M_Locator_ID AND l.M_Warehouse_ID=?)");
+		ArrayList<Object> params = new ArrayList<Object>();
+
+		for (MOrderLine orderLine:order.getLines())
+		{
+			if (orderLine.isDescription() || orderLine.getC_Charge_ID() != 0 || !orderLine.getM_Product().isStocked()
+					|| orderLine.getQtyOrdered().signum()<0)
+				continue;
+			StringBuffer sqlFinal = new StringBuffer(sql);
+			params.clear();
+			params.add(orderLine.getM_Product_ID());
+			// Warehouse level
+			params.add(order.getM_Warehouse_ID());
+			// With ASI
+			if (orderLine.getM_AttributeSetInstance_ID() != 0) {
+				sqlFinal.append(" AND s.M_AttributeSetInstance_ID=?");
+				params.add(orderLine.getM_AttributeSetInstance_ID());
+			}
+			//
+			BigDecimal qtyOnHand = DB.getSQLValueBD(order.get_TrxName(), sqlFinal.toString(), params);
+			if (qtyOnHand.subtract( orderLine.getQtyOrdered()).signum()< 0)
+				error = error + Msg.translate(order.getCtx(), "InsufficientQtyAvailable") + " " + orderLine.getM_Product().getName() + "; ";
+		}
+
+		return error;
+
+	}
+
+	private String updateTranslation(PO po) {
+		String additionalSQL = " ";
+		String tableName = po.get_TableName();
+		Boolean ischange = tableName.equals("C_DocType")? po.is_ValueChanged("Name"):
+			(po.is_ValueChanged("Name") || po.is_ValueChanged("Description"));
+		if (!ischange)
+			return "";
+		String translationTableName = po.get_TableName().concat("_Trl");
+		String columnName = po.get_TableName().concat("_ID");
+		int ID = po.get_ValueAsInt(columnName);
+
+		if (!tableName.equals("C_DocType")){
+			additionalSQL = "', description ='" + po.get_ValueAsString("Description");
+		}
+
+		List<Object> params = new ArrayList<Object>();
+		params.add(ID);
+		params.add(Env.getAD_Language(po.getCtx()));
+		String sql = "Update " + translationTableName + " set name ='" + po.get_Value("Name") + additionalSQL +
+				"' where " + columnName +" =? AND AD_Language = ?";
+		DB.executeUpdateEx(sql,params.toArray(new Object[params.size()]), po.get_TrxName());
+		return ""; 
+	}
+
+	private String updateUser4Order(PO po) {
+		MOrder order = (MOrder)po;
+		if (order.isSOTrx())
+			return "";
+		if (order.getUser4_ID() > 0) {
+			MElementValue user4 = (MElementValue)order.getUser4();
+			user4.set_CustomColumn("ValidFrom", order.getDateOrdered());
+			user4.saveEx();
+		}
+		return "";
+	}
+
+	private String updateUser4MaterialReceipt(PO po) {
+		MInOut inOut = (MInOut)po;
+		if (inOut.isSOTrx())
+			return "";
+		if (inOut.getUser4_ID() > 0) {
+			MElementValue user4 = (MElementValue)inOut.getUser4();
+			user4.set_CustomColumn("ValidTo", inOut.getMovementDate());
+			user4.saveEx();
+		}
+		return "";
+	}
+	
+	private String allocationHdrBeforeDelete(PO po) {
+		MAllocationHdr allocationHdr = (MAllocationHdr)po;
+		
+		Arrays.stream(allocationHdr.getLines(false))
+		.forEach( allocationLine -> {
+			if (allocationLine.getC_Invoice_ID() != 0) {
+				MInvoice invoice = (MInvoice)allocationLine.getC_Invoice();
+				invoice.setIsPaid(false);
+				invoice.saveEx();
+			}
+			if (allocationLine.getC_Payment_ID() !=0) {
+				MPayment payment = (MPayment)allocationLine.getC_Payment();
+				payment.setIsAllocated(false);
+				payment.saveEx();
+			}
+		});
 		return "";
 	}
 
