@@ -51,6 +51,8 @@ public abstract class SBP_Print_PayselectionAbstract extends SvrProcess {
 	public static final String C_CHARGE_ID = "C_Charge_ID";
 	/**	Parameter Name for Transaction Date	*/
 	public static final String DATETRX = "DateTrx";
+	/**	Parameter Name for Direct print	*/
+	public static final String ISDIRECTPRINT = "IsDirectPrint";
 	/**	Parameter Value for Payment Rule	*/
 	private String paymentRule;
 	/**	Parameter Value for Bank Account Document	*/
@@ -71,6 +73,8 @@ public abstract class SBP_Print_PayselectionAbstract extends SvrProcess {
 	private int chargeId;
 	/**	Parameter Value for Transaction Date	*/
 	private Timestamp dateTrx;
+	/**	Parameter Value for Direct print	*/
+	private boolean isDirectPrint;
 
 	@Override
 	protected void prepare() {
@@ -84,6 +88,7 @@ public abstract class SBP_Print_PayselectionAbstract extends SvrProcess {
 		bPartnerId = getParameterAsInt(C_BPARTNER_ID);
 		chargeId = getParameterAsInt(C_CHARGE_ID);
 		dateTrx = getParameterAsTimestamp(DATETRX);
+		isDirectPrint = getParameterAsBoolean(ISDIRECTPRINT);
 	}
 
 	/**	 Getter Parameter Value for Payment Rule	*/
@@ -184,6 +189,16 @@ public abstract class SBP_Print_PayselectionAbstract extends SvrProcess {
 	/**	 Setter Parameter Value for Transaction Date	*/
 	protected void setDateTrx(Timestamp dateTrx) {
 		this.dateTrx = dateTrx;
+	}
+
+	/**	 Getter Parameter Value for Direct print	*/
+	protected boolean isDirectPrint() {
+		return isDirectPrint;
+	}
+
+	/**	 Setter Parameter Value for Direct print	*/
+	protected void setIsDirectPrint(boolean isDirectPrint) {
+		this.isDirectPrint = isDirectPrint;
 	}
 
 	/**	 Getter Parameter Value for Process ID	*/

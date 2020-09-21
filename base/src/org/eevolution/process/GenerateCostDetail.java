@@ -66,7 +66,6 @@ public class GenerateCostDetail extends GenerateCostDetailAbstract {
     private StringBuffer deleteCostDetailWhereClause;
     private StringBuffer resetCostWhereClause;
     //private List<MTransaction> deferredTransactions = new ArrayList<MTransaction>();
-    //private List<I_M_Product> deferredProducts = new ArrayList<I_M_Product>();
 
     /**
      * Prepare - e.g., get Parameters.

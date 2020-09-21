@@ -30,6 +30,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 
+import org.adempiere.exceptions.AdempiereException;
 import org.adempiere.exceptions.DBException;
 import org.adempiere.model.POWrapper;
 import org.adempiere.webui.apps.AEnv;
@@ -37,18 +38,23 @@ import org.adempiere.webui.component.Window;
 import org.adempiere.webui.session.SessionManager;
 import org.adempiere.webui.window.FDialog;
 import org.adempiere.webui.window.SimplePDFViewer;
+import org.compiere.model.I_C_PaySelection;
 import org.compiere.model.MAllocationLine;
 import org.compiere.model.MBankAccount;
 import org.compiere.model.MDocType;
 import org.compiere.model.MPaySelection;
 import org.compiere.model.MPaySelectionCheck;
+import org.compiere.model.MPaySelectionLine;
 import org.compiere.model.MPayment;
 import org.compiere.model.MPaymentBatch;
 import org.compiere.model.PO;
 import org.compiere.model.Query;
+import org.compiere.model.X_C_BankAccountDoc;
+import org.compiere.model.X_C_Payment;
 import org.compiere.print.ServerReportCtl;
 import org.compiere.process.DocAction;
 import org.compiere.print.ReportEngine;
+import org.compiere.util.CLogger;
 import org.compiere.util.DB;
 import org.compiere.util.Env;
 import org.compiere.util.Ini;
@@ -66,18 +72,29 @@ import org.zkoss.zul.Filedownload;
 public class SBP_Print_Payselection extends SBP_Print_PayselectionAbstract
 {
 	private List<File> pdfList = new ArrayList<>();
+	private boolean isSingleRecord = false;
+	private boolean isPrintPayment = false;
+	
 	private List<MPaySelectionCheck> paySelectionChecks = null;
 	private List<MPaySelectionCheck> paySelectionChecksToProcess = null;
 	private int paySelectionId = 0;
 	private MPaySelection paySelection = null;
 	
 	private List<MPayment>	paymentList					= new ArrayList<MPayment>();
+	protected CLogger			log = CLogger.getCLogger (getClass());
 	@Override
 	protected void prepare()
 	{
 		super.prepare();
-		paySelectionId = getRecord_ID();
-		paySelection = new MPaySelection(getCtx(), paySelectionId, get_TrxName());
+		if ( getRecord_ID() !=0 && getTable_ID() == MPaySelection.Table_ID) {
+			paySelection = new MPaySelection(getCtx(), paySelectionId, get_TrxName());
+			paySelectionId = getRecord_ID();
+			isSingleRecord = true;
+		}
+		if (getRecord_ID() != 0 && getTable_ID()==MPayment.Table_ID) {
+			isPrintPayment = true;
+		}
+		
 	}
 
 	@Override
@@ -97,7 +114,7 @@ public class SBP_Print_Payselection extends SBP_Print_PayselectionAbstract
 		return "";
 	}
 	
-	private void printChecks(){}
+	private void printSingleCheck(){}
 
 private void addPDFFile(File file)
 {
@@ -105,6 +122,103 @@ private void addPDFFile(File file)
 }
 	
 	private void cmd_print()
+	{
+		//	for all checks
+		pdfList = new ArrayList<>();
+		if (isSingleRecord) {
+			cmd_printPayselection();
+			return;				
+		}
+		for (MPaySelectionCheck paySelectionCheck:paySelectionChecks) {				
+				
+					ReportEngine re = ReportEngine.get(Env.getCtx(), ReportEngine.CHECK, paySelectionCheck.get_ID());
+					try 
+					{
+						File file = File.createTempFile("WPayPrint", null);
+						addPDFFile(re.getPDF(file));
+					}
+					catch (Exception e)
+					{
+						log.log(Level.SEVERE, e.getLocalizedMessage(), e);
+						return;
+					}
+				}
+				
+				SimplePDFViewer chequeViewer = null;
+				try 
+				{
+					File outFile = File.createTempFile("WPayPrint", null);
+					AEnv.mergePdf(pdfList, outFile);
+					chequeViewer = new SimplePDFViewer("Pay and Print", new FileInputStream(outFile));
+					chequeViewer.setAttribute(Window.MODE_KEY, Window.MODE_EMBEDDED);
+					chequeViewer.setWidth("100%");
+				}
+				catch (Exception e)
+				{
+					log.log(Level.SEVERE, e.getLocalizedMessage(), e);
+					return;
+				}
+
+				//	Update BankAccountDoc
+				int lastDocumentNo = MPaySelectionCheck.confirmPrint (paySelectionChecksToProcess, null);
+				if (lastDocumentNo != 0)
+				{
+					StringBuffer sb = new StringBuffer();
+					sb.append("UPDATE C_BankAccountDoc SET CurrentNext=").append(++lastDocumentNo)
+						.append(" WHERE C_BankAccount_ID=").append(paySelection.getC_BankAccount_ID())
+						.append(" AND PaymentRule='").append(getPaymentRule()).append("'");
+					DB.executeUpdate(sb.toString(), null);
+				}
+
+				/*SimplePDFViewer remitViewer = null; 
+				if (FDialog.ask(0, null, "VPayPrintPrintRemittance"))
+				{
+					pdfList = new ArrayList<>();
+					paySelectionChecks.stream()
+							.filter(paySelectionCheck -> paySelectionCheck != null)
+							.forEach(paySelectionCheck -> {
+						ReportEngine re = ReportEngine.get(Env.getCtx(), ReportEngine.REMITTANCE, paySelectionCheck.get_ID());
+						try 
+						{
+							File file = File.createTempFile("WPayPrint", null);
+							addPDFFile(re.getPDF(file));
+						}
+						catch (Exception e)
+						{
+							log.log(Level.SEVERE, e.getLocalizedMessage(), e);
+						}
+					});
+					
+					try
+					{
+						File outFile = File.createTempFile("WPayPrint", null);
+						AEnv.mergePdf(pdfList, outFile);
+						String name = Msg.translate(Env.getCtx(), "Remittance");
+						remitViewer = new SimplePDFViewer("Print " + " - " + name, new FileInputStream(outFile));
+						remitViewer.setAttribute(Window.MODE_KEY, Window.MODE_EMBEDDED);
+						remitViewer.setWidth("100%");
+					}
+					catch (Exception e)
+					{
+						log.log(Level.SEVERE, e.getLocalizedMessage(), e);
+					}
+				}	//	remittance*/
+
+				pdfList = new ArrayList<>();				
+				if (chequeViewer != null && isDirectPrint())
+					SessionManager.getAppDesktop().showWindow(chequeViewer);
+				
+				//if (remitViewer != null)
+				//	SessionManager.getAppDesktop().showWindow(remitViewer);
+			
+				
+			
+		
+		
+	}   //  cmd_print
+	
+	
+	private void cmd_printPayselection()
 	{
 		//	for all checks
 		pdfList = new ArrayList<>();
@@ -441,6 +555,9 @@ private void addPDFFile(File file)
 			pstmt = DB.prepareStatement(sql, get_TrxName());
 			pstmt.setInt(1, paySelectionId);
 			rs = pstmt.executeQuery();
+			
+			
+			
 			while (rs.next()){
 				try 
 			{
@@ -491,8 +608,11 @@ private void addPDFFile(File file)
 
 					if (FDialog.ask(0, null, "VPayPrintSuccess?"))
 					{
+						for (MPaySelectionCheck paySelectionCheck:paySelectionChecks) {
+							confirmPrint(paySelectionCheck, getPaymentRule());
+						}
 						//	int lastDocumentNo = 
-						MPaySelectionCheck.confirmPrint (paySelectionChecksToProcess, null);
+						//MPaySelectionCheck.confirmPrint (paySelectionChecksToProcess, null);
 						//	document No not updated
 					}
 				} else {
@@ -577,6 +697,155 @@ private void addPDFFile(File file)
 		return payment;
 	
 	}
+	
+	private Boolean confirmPrint(MPaySelectionCheck paySelectionCheck,  String paymentRule) {
+		AtomicInteger lastDocumentNo = new AtomicInteger();
+		MPayment payment = new MPayment(paySelectionCheck.getCtx(), paySelectionCheck.getC_Payment_ID(), paySelectionCheck.get_TrxName());
+		//	Existing Payment
+		if (paySelectionCheck.getC_Payment_ID() != 0
+				&& (payment.getDocStatus().equals(DocAction.STATUS_Completed)
+						|| payment.getDocStatus().equals(DocAction.STATUS_Closed))) {
+			//	Update check number
+			if (getPaymentRule().equals(MPaySelectionCheck.PAYMENTRULE_Check)) {
+				payment.setCheckNo(paySelectionCheck.getDocumentNo());
+			} else {
+				payment.setDocumentNo(paySelectionCheck.getDocumentNo());
+			}
+			payment.set_CustomColumn(X_C_BankAccountDoc.COLUMNNAME_C_BankAccountDoc_ID, getBankAccountDocId());
+			payment.saveEx();
+		} else {	//	New Payment
+			I_C_PaySelection paySelection =  paySelectionCheck.getC_PaySelection();
+			MDocType documentType = MDocType.get(paySelectionCheck.getCtx(), paySelection.getC_DocType_ID());
+			int docTypeId = documentType.getC_DocTypePayment_ID();
+			//	
+			payment = new MPayment(paySelectionCheck.getCtx(), 0, paySelectionCheck.get_TrxName());
+			payment.setDateTrx(getDateTrx());
+			payment.setDateAcct(getDateTrx());
+			payment.setAD_Org_ID(paySelectionCheck.getAD_Org_ID());
+			payment.set_CustomColumn("bpartnername", paySelectionCheck.get_Value("bpartnername"));
+			if (getPaymentRule().equals(MPaySelectionCheck.PAYMENTRULE_Check)) {
+				payment.setBankCheck (paySelectionCheck.getParent().getC_BankAccount_ID(), false, paySelectionCheck.getDocumentNo());
+				payment.set_CustomColumn(X_C_BankAccountDoc.COLUMNNAME_C_BankAccountDoc_ID, getBankAccountDocId());
+			} else if (getPaymentRule().equals(MPaySelectionCheck.PAYMENTRULE_CreditCard)) {
+				payment.setTenderType(X_C_Payment.TENDERTYPE_CreditCard);
+			} else if (getPaymentRule().equals(MPaySelectionCheck.PAYMENTRULE_DirectDeposit)
+					|| getPaymentRule().equals(MPaySelectionCheck.PAYMENTRULE_DirectDebit)) {
+				payment.setBankACH(paySelectionCheck);
+			} else {
+				log.config("Unsupported Payment Rule=" + paySelectionCheck.getPaymentRule());
+				throw  new AdempiereException("Unsupported Payment Rule=" + paySelectionCheck.getPaymentRule());
+				//continue;
+			}
+			payment.setTrxType(X_C_Payment.TRXTYPE_CreditPayment);
+			if (docTypeId > 0) {
+				payment.setC_DocType_ID(docTypeId);
+			}
+			payment.setAmount(paySelectionCheck.getParent().getC_Currency_ID(), paySelectionCheck.getPayAmt());
+			payment.setDiscountAmt(paySelectionCheck.getDiscountAmt());
+			payment.setDateTrx(paySelectionCheck.getParent().getPayDate());
+			payment.setDateAcct(payment.getDateTrx()); // globalqss [ 2030685 ]
+			payment.setC_BPartner_ID(paySelectionCheck.getC_BPartner_ID());
+			if (!paySelectionCheck.getPaymentRule().equals(MPaySelectionCheck.PAYMENTRULE_Check)) {
+				payment.setDocumentNo(paySelectionCheck.getDocumentNo());
+			}
+			List<MPaySelectionLine> paySelectionLines = paySelectionCheck.getPaySelectionLinesAsList(false);
+			log.config("confirmPrint - " + paySelectionCheck + " (#SelectionLines=" + (paySelectionLines != null? paySelectionLines.size(): 0) + ")");
+			//	For bank Transfer
+			if(documentType.isBankTransfer()) {
+				payment.setC_Invoice_ID(-1);
+				payment.setC_Order_ID(-1);
+				payment.setTenderType(MPayment.TENDERTYPE_DirectDeposit);
+				payment.saveEx();
+				if(paySelectionLines != null) {
+					for(MPaySelectionLine line : paySelectionLines) {
+						if(line.getC_BankAccountTo_ID() == 0) {
+							throw new AdempiereException("@C_BankAccountTo_ID@ @NotFound@");
+						}
+						//	For all
+						MPayment receiptAccount = new MPayment(paySelectionCheck.getCtx(), 0, paySelectionCheck.get_TrxName());
+						PO.copyValues(payment, receiptAccount);
+						//	Set default values
+						receiptAccount.setC_BankAccount_ID(line.getC_BankAccountTo_ID());
+						receiptAccount.setIsReceipt(!payment.isReceipt());
+						receiptAccount.setC_DocType_ID(!payment.isReceipt());
+						receiptAccount.setRelatedPayment_ID(payment.getC_Payment_ID());
+						receiptAccount.setTenderType(MPayment.TENDERTYPE_DirectDeposit);
+						receiptAccount.setC_Charge_ID(line.getC_Charge_ID());
+						receiptAccount.saveEx();
+						receiptAccount.processIt(DocAction.ACTION_Complete);
+						receiptAccount.saveEx();
+						payment.setRelatedPayment_ID(receiptAccount.getC_Payment_ID());
+						payment.setC_Charge_ID(receiptAccount.getC_Charge_ID());
+						payment.saveEx();
+					}
+				}
+			} else {
+				//	Link to Invoice
+				if (paySelectionCheck.getQty() == 1 && paySelectionLines != null && paySelectionLines.size() == 1) {
+					MPaySelectionLine paySelectionLine = paySelectionLines.get(0);
+					log.config("Map to Invoice " + paySelectionLine);
+					//
+					//	FR [ 297 ]
+					//	For Order
+					if(paySelectionLine.getC_Order_ID() != 0) {
+						payment.setC_Order_ID (paySelectionLine.getC_Order_ID());
+					}
+					//	For Charge
+					if (paySelectionLine.getC_Charge_ID() != 0) {
+						payment.setC_Charge_ID(paySelectionLine.getC_Charge_ID());
+						if (paySelectionLine.getHR_Movement_ID() > 0) {
+							payment.setC_Project_ID(paySelectionLine.getHRMovement().getC_Project_ID());
+						}
+					}
+					//	For Conversion Type
+					if(paySelectionLine.getC_ConversionType_ID() != 0) {
+						payment.setC_ConversionType_ID(paySelectionLine.getC_ConversionType_ID());
+					}
+					//	For Invoice
+					if(paySelectionLine.getC_Invoice_ID() != 0) {
+						payment.setC_Invoice_ID (paySelectionLine.getC_Invoice_ID());
+					}
+					//	For all
+					payment.setIsPrepayment(paySelectionLine.isPrepayment());
+					//	
+					payment.setDiscountAmt (paySelectionLine.getDiscountAmt());
+					payment.setWriteOffAmt(paySelectionLine.getDifferenceAmt());
+					BigDecimal overUnder = paySelectionLine.getOpenAmt().subtract(paySelectionLine.getPayAmt())
+							.subtract(paySelectionLine.getDiscountAmt()).subtract(paySelectionLine.getDifferenceAmt());
+					payment.setOverUnderAmt(overUnder);
+				} else {
+					payment.setDiscountAmt(Env.ZERO);
+				}
+			}
+			payment.setWriteOffAmt(Env.ZERO);
+			payment.saveEx();
+			//	
+			paySelectionCheck.setC_Payment_ID (payment.getC_Payment_ID());
+			paySelectionCheck.saveEx();	//	Payment process needs it
+			//	Should start WF
+			payment.processIt(DocAction.ACTION_Complete);
+			payment.saveEx();
+		}	//	new Payment
+
+		//	Get Check Document No
+		try
+		{
+			int no = Integer.parseInt(paySelectionCheck.getDocumentNo());
+			if (lastDocumentNo.get() < no)
+				lastDocumentNo.set(no);
+		}
+		catch (NumberFormatException ex)
+		{
+			log.config( "DocumentNo=" + paySelectionCheck.getDocumentNo());
+		}
+		paySelectionCheck.setIsPrinted(true);
+		paySelectionCheck.setProcessed(true);
+		paySelectionCheck.saveEx();
+
+		log.config("Last Document No = " + lastDocumentNo.get());
+		return null;	
+	}
+
 	
 	
 	

@@ -49,9 +49,9 @@ public class M_CostDetailGenerate_Batch extends M_CostDetailGenerate_BatchAbstra
 				sql.append(" c_Acctschema_ID, m_Costelement_ID, m_Costtype_ID , min(dateAcct) as dateacct ");
 				sql.append(" from m_Product p ");
 				sql.append(" INNER JOIN (");
-				sql.append(" select seqno, count(*) as count ,dateacct, cd.m_product_ID, m_Costelement_ID, m_Costtype_ID,c_Acctschema_ID ");
+				sql.append(" select seqno, count(*) as count ,min(dateAcct) as dateacct, cd.m_product_ID, m_Costelement_ID, m_Costtype_ID,c_Acctschema_ID ");
 				sql.append(" from m_Costdetail cd ");
-				sql.append(" group by dateacct, cd.m_product_ID, m_Costelement_ID, m_Costtype_ID,seqno, c_Acctschema_ID) cd on p.m_Product_ID=cd.m_Product_ID ");
+				sql.append(" group by cd.m_product_ID, m_Costelement_ID, m_Costtype_ID,seqno, c_Acctschema_ID) cd on p.m_Product_ID=cd.m_Product_ID ");
 				sql.append(" where p.ad_Client_ID=? and count > 1 ");
 				sql.append(" group by p.value, p.m_Product_ID, cd.c_AcctSchema_ID, m_Costelement_ID, m_Costtype_ID ");
 				sql.append(" order by p.value");

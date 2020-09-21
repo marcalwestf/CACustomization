@@ -563,7 +563,7 @@ public class DocumentEngine implements DocAction
 		{
 			if (m_document.reverseCorrectIt())
 			{
-				m_status = STATUS_Reversed;
+				m_status = STATUS_Voided;
 				m_document.setDocStatus(m_status);
 				return true;
 			}
@@ -587,7 +587,7 @@ public class DocumentEngine implements DocAction
 		{
 			if (m_document.reverseAccrualIt())
 			{
-				m_status = STATUS_Reversed;
+				m_status = STATUS_Voided;
 				m_document.setDocStatus(m_status);
 				return true;
 			}

@@ -17,6 +17,8 @@
 
 package org.adempiere.process;
 
+import java.math.BigDecimal;
+
 import org.compiere.model.MInOutLine;
 import org.compiere.model.MStorage;
 import org.compiere.model.MTransaction;
@@ -41,19 +43,23 @@ public class CreateMTransaction extends CreateMTransactionAbstract
 	{		
 		for(Integer key : getSelectionKeys()) {
 			MInOutLine inOutLine = new MInOutLine(getCtx(), key, get_TrxName());
+			String MovementType = inOutLine.getParent().getMovementType();
+			BigDecimal quantity = inOutLine.getMovementQty();
+			if (MovementType.charAt(1) == '-' )	//	C- Customer Shipment - V- Vendor Return
+				quantity = quantity.negate();
 			MTransaction materialTransaction = new MTransaction (getCtx(), inOutLine.getAD_Org_ID(),
 					inOutLine.getParent().getMovementType(), inOutLine.getM_Locator_ID(),
 					inOutLine.getM_Product_ID(), inOutLine.getM_AttributeSetInstance_ID(),
-					inOutLine.getMovementQty(), inOutLine.getParent().getMovementDate(), get_TrxName());
+					quantity, inOutLine.getParent().getMovementDate(), get_TrxName());
 				materialTransaction.setM_InOutLine_ID(inOutLine.getM_InOutLine_ID());
 				materialTransaction.saveEx();		
 				MStorage.add(getCtx(), inOutLine.getParent().getM_Warehouse_ID(),
 						inOutLine.getM_Locator_ID(),
 						inOutLine.getM_Product_ID(),
 						inOutLine.getM_AttributeSetInstance_ID(), 0,
-						inOutLine.getMovementQty(),
-						inOutLine.getMovementQty(),
-						inOutLine.getMovementQty(),
+						quantity,
+						Env.ZERO,
+						Env.ZERO,
 						get_TrxName());
 		}
 

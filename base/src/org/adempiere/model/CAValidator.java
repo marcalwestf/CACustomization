@@ -28,17 +28,13 @@ import java.util.Arrays;
 import java.util.Calendar;
 import java.util.GregorianCalendar;
 import java.util.List;
-import java.util.Properties;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Predicate;
 import java.util.logging.Level;
 
 import org.adempiere.exceptions.AdempiereException;
 import org.compiere.acct.Doc;
 import org.compiere.acct.Fact;
 import org.compiere.acct.FactLine;
-import org.compiere.model.I_C_InvoiceLine;
-import org.compiere.model.I_C_PaySelection;
 import org.compiere.model.MAllocationHdr;
 import org.compiere.model.MBPartner;
 import org.compiere.model.MBank;
@@ -50,6 +46,7 @@ import org.compiere.model.MClient;
 import org.compiere.model.MCommissionAmt;
 import org.compiere.model.MCommissionDetail;
 import org.compiere.model.MConversionRate;
+import org.compiere.model.MCostDetail;
 import org.compiere.model.MDocType;
 import org.compiere.model.MElementValue;
 import org.compiere.model.MFactAcct;
@@ -66,18 +63,15 @@ import org.compiere.model.MPaySelection;
 import org.compiere.model.MPaySelectionCheck;
 import org.compiere.model.MPaySelectionLine;
 import org.compiere.model.MPayment;
-import org.compiere.model.MPaymentBatch;
 import org.compiere.model.MPaymentTerm;
 import org.compiere.model.MProduct;
+import org.compiere.model.MProductPO;
 import org.compiere.model.MProduction;
 import org.compiere.model.MProductionLine;
 import org.compiere.model.MProject;
 import org.compiere.model.MProjectIssue;
 import org.compiere.model.MProjectLine;
-import org.compiere.model.MRMA;
-import org.compiere.model.MRMALine;
 import org.compiere.model.MRequisition;
-import org.compiere.model.MStorage;
 import org.compiere.model.MTax;
 import org.compiere.model.MTaxCategory;
 import org.compiere.model.MTaxDeclarationLine;
@@ -91,7 +85,6 @@ import org.compiere.model.Query;
 import org.compiere.model.X_C_Payment;
 import org.compiere.process.DocAction;
 import org.compiere.sqlj.Adempiere;
-import org.compiere.util.CLogMgt;
 import org.compiere.util.CLogger;
 import org.compiere.util.DB;
 import org.compiere.util.Env;
@@ -159,6 +152,9 @@ public class CAValidator implements ModelValidator
 		engine.addModelChange(MElementValue.Table_Name, this);
 		engine.addModelChange(MDocType.Table_Name, this);
 		engine.addModelChange(MAllocationHdr.Table_Name, this);
+		engine.addModelChange(MProductPO.Table_Name, this);
+		engine.addModelChange(MCostDetail.Table_Name, this);
+		engine.addModelChange(MPaySelectionLine.Table_Name, this);
 		
 
 		engine.addDocValidate(MPaySelection.Table_Name	, this);
@@ -232,6 +228,10 @@ public class CAValidator implements ModelValidator
 			 if (po instanceof MInvoiceTax) {
 				 error = controlInvoiceTax(po);
 			 }
+			 
+			 if (po instanceof MProductPO) {
+				 error = productPOCheckCurrentVendor(po);
+			 }
 		}
 
 		if (type == ModelValidator.TYPE_AFTER_CHANGE ){
@@ -256,6 +256,8 @@ public class CAValidator implements ModelValidator
 			if (po.get_TableName().equals(MPaySelectionLine.Table_Name)) {
 				error = C_PayselectionLine_GetPaymentRuleFromHeader(po);
 			}
+			if (po instanceof MPaySelectionLine)
+				error = paySelectionLineUpdatebpartnerName(po);
 		}
 		
 		if (type == ModelValidator.TYPE_BEFORE_CHANGE && po.get_TableName().equals(MProductionLine.Table_Name))
@@ -1411,6 +1413,25 @@ public class CAValidator implements ModelValidator
 			}
 		});
 		return "";
+	}
+	
+	private String productPOCheckCurrentVendor(PO po) {
+		MProductPO productPO = (MProductPO)po;
+		if (!productPO.isCurrentVendor())
+			return "";
+		String sql = "Select count(*) from m_Product_PO where m_Product_ID=? and iscurrentvendor = 'Y'";
+		List<Object> params = new ArrayList<>();
+		params.add(productPO.getM_Product_ID());
+		int no = DB.getSQLValueEx(productPO.get_TrxName(), sql, params);
+ 
+		return no==0? "": "Ya existe un proveedor predeterminado";
+	}
+	
+	private String paySelectionLineUpdatebpartnerName(PO po) {
+		MPaySelectionLine line = (MPaySelectionLine)po;
+		if (line.get_ValueAsString("bpartnername") == "")
+			line.set_CustomColumn("bpartnername", line.getC_BPartner().getName());
+		return "";		
 	}
 
 	

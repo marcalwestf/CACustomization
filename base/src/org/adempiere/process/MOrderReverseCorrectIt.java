@@ -17,13 +17,9 @@
 
 package org.adempiere.process;
 
-import java.util.List;
-
-import org.compiere.model.I_M_InOut;
 import org.compiere.model.MInOut;
 import org.compiere.model.MInvoice;
 import org.compiere.model.MOrder;
-import org.compiere.model.Query;
 
 /** Generated Process for (MOrderReverseCorrectIt)
  *  @author ADempiere (generated) 
@@ -68,10 +64,9 @@ public class MOrderReverseCorrectIt extends MOrderReverseCorrectItAbstract
 			//	If not completed - void - otherwise reverse it
 			if (MInOut.DOCSTATUS_Completed.equals(ship.getDocStatus()))
 			{
-				ship.voidIt();
-				MInOut reversal  = (MInOut)ship.getReversal();
-				reversal.setMovementDate(getDateOrdered());
-				reversal.saveEx();
+				ship.reverseAccrualIt();
+				//reversal.setMovementDate(getDateOrdered());
+				//reversal.saveEx();
 			}
 
 			else
@@ -101,9 +96,10 @@ public class MOrderReverseCorrectIt extends MOrderReverseCorrectItAbstract
 			//	If not completed - void - otherwise reverse it
 			if (MInvoice.DOCSTATUS_Completed.equals(invoice.getDocStatus()))
 			{
-				invoice.voidIt();
+				invoice.reverseAccrualIt();
 				MInvoice reversal  = (MInvoice)invoice.getReversal();
 				reversal.setDateInvoiced(getDateOrdered());
+				reversal.setDateAcct(getDateOrdered());
 				reversal.saveEx();
 			}		
 			else
@@ -116,4 +112,6 @@ public class MOrderReverseCorrectIt extends MOrderReverseCorrectItAbstract
 		}
 		return true;
 	}
+		
+	
 }
