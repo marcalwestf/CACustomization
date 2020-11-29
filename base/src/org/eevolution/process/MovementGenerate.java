@@ -383,8 +383,8 @@ public class MovementGenerate extends MovementGenerateAbstract
 		//	Non Inventory Lines
 		if (storages == null) {
 			MMovementLine line = new MMovementLine(currentMovement);
-			line.setOrderLine(orderLine, Env.ZERO, false);
-			line.setM_LocatorTo_ID(orderLine.getM_LocatorTo_ID());
+			line.setOrderLine(orderLine, Env.ZERO, true);
+			//line.setM_LocatorTo_ID(orderLine.getM_LocatorTo_ID());
 			line.setMovementQty(qty);    //	Correct UOM
 			if (orderLine.getQtyEntered().compareTo(orderLine.getQtyOrdered()) != 0)
 				line.setMovementQty(qty
@@ -441,7 +441,7 @@ public class MovementGenerate extends MovementGenerateAbstract
 			if (line == null)	//	new line
 			{
 				line = new MMovementLine (currentMovement);
-				line.setOrderLine(orderLine,  deliver , false);
+				line.setOrderLine(orderLine,  deliver , true);
 				//line.setM_LocatorTo_ID(orderLine.getM_LocatorTo_ID());
 				line.setMovementQty(deliver);
 				list.add(line);
