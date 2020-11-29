@@ -97,6 +97,7 @@ import org.eevolution.model.MHREmployee;
 import org.eevolution.model.MPPOrder;
 import org.eevolution.model.MWMInOutBoundLine;
 import org.eevolution.model.X_C_TaxDefinition;
+import org.globalqss.model.MLCOInvoiceWithholding;
 
 
 /**
@@ -251,10 +252,13 @@ public class CAValidator implements ModelValidator
 			
 		}
 		if (type == ModelValidator.TYPE_BEFORE_NEW ) {
-			if( po.get_TableName().equals(MOrder.Table_Name))
-			error = UpdatePaymentRule(po);
-			if (po.get_TableName().equals(MPaySelectionLine.Table_Name)) {
-				error = C_PayselectionLine_GetPaymentRuleFromHeader(po);
+			if( po.get_TableName().equals(MOrder.Table_Name)) {
+				error = UpdatePaymentRule(po);
+				if (po.get_TableName().equals(MPaySelectionLine.Table_Name)) {
+					error = C_PayselectionLine_GetPaymentRuleFromHeader(po);						
+				}
+				if (po.is_ValueChanged(MOrder.COLUMNNAME_DateOrdered))
+					UpdateDatePromised(po);
 			}
 			if (po instanceof MPaySelectionLine)
 				error = paySelectionLineUpdatebpartnerName(po);
@@ -299,6 +303,30 @@ public class CAValidator implements ModelValidator
 		 paySelectionLine.setPaymentRule(paySelection.get_ValueAsString(MPaySelectionLine.COLUMNNAME_PaymentRule));
 		 return "";
 	 }
+	 
+
+	private String C_PayselectionLine_calculateWithHolding(PO po){
+		 
+		 MPaySelectionLine paySelectionLine =  (MPaySelectionLine)po;
+		 BigDecimal sumwhamt = Env.ZERO;
+		 String whereClause = "C_Invoice_ID = ? AND IsActive = 'Y' AND " +
+					"IsCalcOnPayment = 'Y' AND Processed = 'N' AND " +
+					"C_AllocationLine_ID IS NULL";
+		 List<MLCOInvoiceWithholding> iwhs = new Query(paySelectionLine.getCtx(), MLCOInvoiceWithholding.Table_Name, 
+				 whereClause, paySelectionLine.get_TrxName())
+					.setParameters(paySelectionLine.getC_Invoice_ID())
+					.setOnlyActiveRecords(true)
+					.list();
+		 for (MLCOInvoiceWithholding iwh:iwhs)
+			{						
+				sumwhamt = sumwhamt.add(iwh.getTaxAmt());
+			}
+		 if (sumwhamt.compareTo(Env.ZERO) !=0) {
+			 paySelectionLine.setPayAmt(paySelectionLine.getPayAmt().subtract(sumwhamt));
+			 paySelectionLine.saveEx();
+		 }
+		 return "";
+	 }
 
 	private String User4Mandatory(PO po) {
 		MOrder order = (MOrder)po;
@@ -324,6 +352,29 @@ public class CAValidator implements ModelValidator
 		{
 			order.setPaymentRule(MOrder.PAYMENTRULE_Cash);
 		}
+		return "";
+	}
+	
+	private String UpdateDatePromised(PO po) {
+		MOrder order = (MOrder)po;
+		if (!order.isSOTrx())
+			return "";
+		Timestamp datePromised = order.getDateOrdered();
+		try {
+			GregorianCalendar cal = new GregorianCalendar(Language.getLoginLanguage().getLocale());
+				cal.setTimeInMillis(datePromised.getTime());
+				cal.add(Calendar.DAY_OF_YEAR, +3);	//	next
+				cal.set(Calendar.HOUR_OF_DAY, 0);
+				cal.set(Calendar.MINUTE, 0);
+				cal.set(Calendar.SECOND, 0);
+				cal.set(Calendar.MILLISECOND, 0);
+				datePromised =  new Timestamp (cal.getTimeInMillis());
+				datePromised = nextBusinessDay(datePromised, order.get_TrxName());
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		order.setDatePromised(datePromised);
 		return "";
 	}
 	
@@ -361,7 +412,7 @@ public class CAValidator implements ModelValidator
 		sqlRole.append("SELECT count(*) FROM AD_Role r  WHERE r.IsActive='Y' ");
 		sqlRole.append("	AND EXISTS (SELECT * FROM AD_User_Roles ur");
 		sqlRole.append("	WHERE r.AD_Role_ID=ur.AD_Role_ID AND ur.IsActive='Y' AND ur.AD_User_ID=?) ");
-		sqlRole.append("	AND r.overwritepricelimit = 'Y' ");
+		sqlRole.append("	AND r.IsDiscountUptoLimitPrice = 'N' ");
 		int noRole = DB.getSQLValueEx(order.get_TrxName(), sqlRole.toString(), Env.getAD_User_ID(order.getCtx()));
 		if (noRole>0) {
 			order.set_ValueOfColumn("isControlLimitPrice", false);
@@ -845,7 +896,11 @@ public class CAValidator implements ModelValidator
 
 				error = UpdateCreditMemo(po);
         	}
-        }
+        	
+        	if (po instanceof MOrder) {
+        		error = AfterPrepareIsControlLimitPrice(po);
+        	}
+;        }
         if (ModelValidator.TIMING_BEFORE_VOID == timing) {
         	if (po instanceof MPaySelection)
         		error = voidIncludedPayments(po);
@@ -1433,6 +1488,54 @@ public class CAValidator implements ModelValidator
 			line.set_CustomColumn("bpartnername", line.getC_BPartner().getName());
 		return "";		
 	}
+	
+	 public Timestamp nextBusinessDay (Timestamp day, String trxName) throws SQLException
+	{
+		if (day == null)
+			day = new Timestamp(System.currentTimeMillis());
+		//
+		GregorianCalendar cal = new GregorianCalendar();
+		cal.setTime(day);
+		cal.set(Calendar.HOUR_OF_DAY, 0);
+		cal.set(Calendar.MINUTE, 0);
+		cal.set(Calendar.SECOND, 0);
+		cal.set(Calendar.MILLISECOND, 0);
+		//
+		//begin Goodwill (www.goodwill.co.id)
+		// get Holiday
+		boolean isHoliday = true;
+		do
+		{
+			int dow = cal.get(Calendar.DAY_OF_WEEK);
+			if (dow == Calendar.SATURDAY)
+				cal.add(Calendar.DAY_OF_YEAR, 2);
+			else if (dow == Calendar.SUNDAY)
+				cal.add(Calendar.DAY_OF_YEAR, 1);
+			java.util.Date temp = cal.getTime();
+			String sql = "SELECT Date1 FROM C_NonBusinessDay WHERE IsActive ='Y' AND Date1=?";
+			//PreparedStatement pstmt = Adempiere.prepareStatement(sql);
+			PreparedStatement pstmt = DB.prepareStatement(sql, trxName);
+			pstmt.setTimestamp(1,new Timestamp(temp.getTime()));
+			ResultSet rs = pstmt.executeQuery();
+			if (rs.next())
+			{
+				cal = new GregorianCalendar();
+				cal.setTime(temp);
+				cal.add(Calendar.DAY_OF_YEAR,1);
+			}
+			else 
+				isHoliday = false;
+			
+			rs.close();
+			pstmt.close();
+
+		}
+		while (isHoliday);
+		// end Goodwill
+		
+		return new Timestamp (cal.getTimeInMillis());
+	}	//	nextBusinessDay	
+	
 
 	
 }	//	Validator

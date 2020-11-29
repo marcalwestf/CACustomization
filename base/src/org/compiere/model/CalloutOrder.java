@@ -1113,7 +1113,8 @@ public class CalloutOrder extends CalloutEngine
 
 		//	Check PriceLimit
 		String epl = Env.getContext(ctx, WindowNo, "EnforcePriceLimit");
-		boolean enforce = Env.isSOTrx(ctx, WindowNo) && epl != null && epl.equals("Y");
+		boolean enforce = (MPriceList.isCheckPriceLimit(M_PriceList_ID) && PriceLimit.doubleValue() !=0  && PriceActual.compareTo(PriceLimit) < 0);
+				 
 		if (enforce && MRole.getDefault().isOverwritePriceLimit())
 			enforce = false;
 		//	Check Price Limit?
