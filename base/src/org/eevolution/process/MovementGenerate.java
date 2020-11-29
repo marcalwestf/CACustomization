@@ -362,7 +362,7 @@ public class MovementGenerate extends MovementGenerateAbstract
 			MLocator locator = MLocator.get(getCtx(), orderLine.getM_Locator_ID());
 			movement = new MMovement(order, getMovementDate());
 			movement.setAD_Org_ID(locator.getAD_Org_ID());
-			movement.setIsInTransit(true);
+			movement.setIsInTransit(false);
 			if (order.getC_BPartner_ID() != order.getC_BPartner_ID())
 				movement.setC_BPartner_ID(order.getC_BPartner_ID());
 			if (order.getC_BPartner_Location_ID() != order.getC_BPartner_Location_ID())
@@ -442,6 +442,7 @@ public class MovementGenerate extends MovementGenerateAbstract
 			{
 				line = new MMovementLine (currentMovement);
 				line.setOrderLine(orderLine,  deliver , false);
+				//line.setM_LocatorTo_ID(orderLine.getM_LocatorTo_ID());
 				line.setMovementQty(deliver);
 				list.add(line);
 			}
