@@ -31,6 +31,7 @@ package org.eevolution.process;
 
 import java.math.BigDecimal;
 import java.sql.Timestamp;
+import java.util.ArrayList;
 import java.util.Hashtable;
 import java.util.List;
 import java.util.Optional;
@@ -46,6 +47,7 @@ import org.compiere.model.MOrderLine;
 import org.compiere.model.MProduct;
 import org.compiere.model.MStorage;
 import org.compiere.model.MWarehouse;
+import org.compiere.util.CLogMgt;
 import org.compiere.util.DB;
 import org.compiere.util.Env;
 import org.eevolution.model.I_DD_OrderLine;
@@ -186,12 +188,12 @@ public class GenerateInOutBound extends GenerateInOutBoundAbstract {
 		if (attributeSet == null || !attributeSet.isInstanceAttribute()) {
 			MWMInOutBoundLine inOutBoundLine = new MWMInOutBoundLine (inOutBound);
 			inOutBoundLine.setLine(getLineNo(inOutBound));
-			BigDecimal movementqty = MStorage.getQtyAvailable(inOutBound.getM_Warehouse_ID(),inOutBound.getM_Locator_ID(),
+			BigDecimal qtyOnHand = getQtyOnHand(inOutBound.getM_Warehouse_ID(),inOutBound.getM_Locator_ID(),
 					orderLine.getM_Product_ID(),
-					0, get_TrxName()).compareTo(qtyToDeliver)>=0? qtyToDeliver
-							: MStorage.getQtyAvailable(inOutBound.getM_Warehouse_ID(),inOutBound.getM_Locator_ID(),
-							orderLine.getM_Product_ID(),
-							0, get_TrxName());
+					0, get_TrxName());			
+					
+			BigDecimal movementqty = qtyOnHand.compareTo(qtyToDeliver)>=0? qtyToDeliver
+							: qtyOnHand;
 			inOutBoundLine.setM_Product_ID(orderLine.getM_Product_ID());
 			inOutBoundLine.setM_AttributeSetInstance_ID(orderLine.getM_AttributeSetInstance_ID());
 			inOutBoundLine.setMovementQty(movementqty);
@@ -264,5 +266,34 @@ public class GenerateInOutBound extends GenerateInOutBoundAbstract {
 
 		
 	}	//	checkMaterialPolicy
+    
+    
+    private  BigDecimal getQtyOnHand (int M_Warehouse_ID, int M_Locator_ID, 
+    		int M_Product_ID, int M_AttributeSetInstance_ID, String trxName)
+    	{
+    		ArrayList<Object> params = new ArrayList<Object>();
+    		StringBuffer sql = new StringBuffer("SELECT COALESCE(SUM(s.QtyOnHand),0)")
+    								.append(" FROM M_Storage s")
+    								.append(" WHERE s.M_Product_ID=?");
+    		params.add(M_Product_ID);
+    		// Warehouse level
+    		if (M_Locator_ID == 0) {
+    			sql.append(" AND EXISTS (SELECT 1 FROM M_Locator l WHERE s.M_Locator_ID=l.M_Locator_ID AND l.M_Warehouse_ID=?)");
+    			params.add(M_Warehouse_ID);
+    		}
+    		// Locator level
+    		else {
+    			sql.append(" AND s.M_Locator_ID=?");
+    			params.add(M_Locator_ID);
+    		}
+    		// With ASI
+    		if (M_AttributeSetInstance_ID != 0) {
+    			sql.append(" AND s.M_AttributeSetInstance_ID=?");
+    			params.add(M_AttributeSetInstance_ID);
+    		}
+    		//
+    		BigDecimal retValue = DB.getSQLValueBD(trxName, sql.toString(), params);
+    		return retValue;
+    	}	//	getQtyAvailable
 
 }

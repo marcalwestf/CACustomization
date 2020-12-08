@@ -68,6 +68,11 @@ import org.eevolution.model.MPPProductBOMLine;
  *			<a href="https://github.com/adempiere/adempiere/issues/887">
  * 			@see FR [ 887 ] System Config reversal invoice DocNo</a>
  */
+/**
+ * 
+ * @author SHW_User
+ * RecalculateTax unterbinden wenn status Inprocess
+ */
 public class MInvoice extends X_C_Invoice implements DocAction , DocumentReversalEnabled
 {
 	/**
@@ -1388,7 +1393,6 @@ public class MInvoice extends X_C_Invoice implements DocAction , DocumentReversa
 			processMsg = "Error calculating Tax";
 			return DocAction.STATUS_Invalid;
 		}
-		
 
 		createPaySchedule();
 
@@ -2268,7 +2272,7 @@ public class MInvoice extends X_C_Invoice implements DocAction , DocumentReversa
 				});
 		setProcessed(true);
 		setReversal_ID(reversal.getC_Invoice_ID());
-		setDocStatus(DOCSTATUS_Voided);	//	may come from void
+		setDocStatus(DOCSTATUS_Reversed);	//	may come from void
 		setDocAction(DOCACTION_None);
 		setC_Payment_ID(0);
 		setIsPaid(true);

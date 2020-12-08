@@ -34,6 +34,7 @@ import org.compiere.model.MProduct;
 import org.compiere.model.MProductCategory;
 import org.compiere.model.MStorage;
 import org.compiere.model.Query;
+import org.compiere.process.DocAction;
 import org.compiere.util.DB;
 import org.compiere.util.Env;
 import org.eevolution.model.MDDOrder;
@@ -142,10 +143,13 @@ public class MovementGenerate extends MovementGenerateAbstract
 	 *	@return info
 	 */
 	private String generate (List<MDDOrder> distributionOrders) {
-
 		distributionOrders.stream().filter(order -> order != null).forEach( order -> {
 				//	New Header different Shipper, Shipment Location
-
+				if (order.getDocStatus().equals(MDDOrder.DOCSTATUS_Drafted) || order.getDocStatus().equals(MDDOrder.DOCSTATUS_InProgress))
+				{
+					order.completeIt();
+					order.saveEx();
+				}
 				getCurrentMovement()
 						.filter(movement -> movement != null
 							 || !isConsolidateDocument())
@@ -362,7 +366,7 @@ public class MovementGenerate extends MovementGenerateAbstract
 			MLocator locator = MLocator.get(getCtx(), orderLine.getM_Locator_ID());
 			movement = new MMovement(order, getMovementDate());
 			movement.setAD_Org_ID(locator.getAD_Org_ID());
-			movement.setIsInTransit(false);
+			movement.setIsInTransit(true);
 			if (order.getC_BPartner_ID() != order.getC_BPartner_ID())
 				movement.setC_BPartner_ID(order.getC_BPartner_ID());
 			if (order.getC_BPartner_Location_ID() != order.getC_BPartner_Location_ID())
@@ -383,8 +387,8 @@ public class MovementGenerate extends MovementGenerateAbstract
 		//	Non Inventory Lines
 		if (storages == null) {
 			MMovementLine line = new MMovementLine(currentMovement);
-			line.setOrderLine(orderLine, Env.ZERO, true);
-			//line.setM_LocatorTo_ID(orderLine.getM_LocatorTo_ID());
+			line.setOrderLine(orderLine, Env.ZERO, false);
+			line.setM_LocatorTo_ID(orderLine.getM_LocatorTo_ID());
 			line.setMovementQty(qty);    //	Correct UOM
 			if (orderLine.getQtyEntered().compareTo(orderLine.getQtyOrdered()) != 0)
 				line.setMovementQty(qty
@@ -441,8 +445,8 @@ public class MovementGenerate extends MovementGenerateAbstract
 			if (line == null)	//	new line
 			{
 				line = new MMovementLine (currentMovement);
-				line.setOrderLine(orderLine,  deliver , true);
-				//line.setM_LocatorTo_ID(orderLine.getM_LocatorTo_ID());
+				line.setOrderLine(orderLine,  deliver , false);
+				line.setM_LocatorTo_ID(orderLine.getM_LocatorTo_ID());
 				line.setMovementQty(deliver);
 				list.add(line);
 			}

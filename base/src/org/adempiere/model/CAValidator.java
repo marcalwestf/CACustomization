@@ -638,6 +638,7 @@ public class CAValidator implements ModelValidator
 		for (MPaySelectionCheck paySelectionCheck:paySelectionChecks)
 		{
 			MPayment payment = new MPayment(paySelectionCheck.getCtx(), paySelectionCheck.getC_Payment_ID(), paySelectionCheck.get_TrxName());
+			
 			//	Existing Payment
 			if (paySelectionCheck.getC_Payment_ID() != 0
 					&& (payment.getDocStatus().equals(DocAction.STATUS_Completed)
@@ -1032,9 +1033,9 @@ public class CAValidator implements ModelValidator
 			}
 			else
 				bsl = new MBankStatementLine(payment.getCtx(), bsls[0], payment.get_TrxName());
-			if (bsl.getParent().getC_BankAccount().getC_Bank().getBankType().equals((MBank.BANKTYPE_CashJournal)))
-					bsl.getParent().processIt("CO");
-					bsl.getParent().saveEx();
+			//if (bsl.getParent().getC_BankAccount().getC_Bank().getBankType().equals((MBank.BANKTYPE_CashJournal)))
+			//		bsl.getParent().processIt("CO");
+			//		bsl.getParent().saveEx();
 			}
 		return "";
 	}

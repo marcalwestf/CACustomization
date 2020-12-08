@@ -1,3 +1,4 @@
+package org.compiere.sqlj;
 /******************************************************************************
  * Product: Adempiere ERP & CRM Smart Business Solution                       *
  * Copyright (C) 1999-2006 ComPiere, Inc. All Rights Reserved.                *
@@ -14,7 +15,7 @@
  * ComPiere, Inc., 2620 Augustine Dr. #245, Santa Clara, CA 95054, USA        *
  * or via info@compiere.org or http://www.compiere.org/license.html           *
  *****************************************************************************/
-package org.compiere.sqlj;
+
 
 import java.io.Serializable;
 import java.math.BigDecimal;

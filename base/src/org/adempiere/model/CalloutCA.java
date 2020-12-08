@@ -31,7 +31,9 @@ import org.compiere.model.GridTab;
 import org.compiere.model.MBPartner;
 import org.compiere.model.MCharge;
 import org.compiere.model.MProduct;
+import org.compiere.model.MProductPricing;
 import org.compiere.model.Query;
+import org.compiere.model.X_C_BPartner;
 import org.compiere.util.CLogger;
 import org.compiere.util.DB;
 import org.compiere.util.DisplayType;
@@ -197,6 +199,60 @@ public class CalloutCA extends CalloutEngine
 		if (steps) log.warning("fini");
 		return "";
 	}
+	
+	public String movementBPartner (Properties ctx, int WindowNo, GridTab mTab, GridField mField, Object value)
+	{
+		
+		Integer C_BPartner_ID = (Integer)value;
+		if (C_BPartner_ID == null || C_BPartner_ID.intValue() == 0)
+			return "";
+		
+		X_C_BPartner bpartner = new X_C_BPartner(ctx, C_BPartner_ID, null);
+		if (bpartner.getM_PriceList_ID() > 0)
+			mTab.setValue("M_PriceList_ID", bpartner.getM_PriceList_ID());
+		return "";
+	}
+	
+	public String movementProduct (Properties ctx, int WindowNo, GridTab mTab, GridField mField, Object value)
+	{
+		
+
+		Integer M_Product_ID = (Integer)value;
+		if (M_Product_ID == null || M_Product_ID.intValue() == 0)
+			return "";
+
+		int C_BPartner_ID = Env.getContextAsInt(ctx, WindowNo, "C_BPartner_ID");
+		MProductPricing pp = new MProductPricing(M_Product_ID, C_BPartner_ID, Env.ONE, true, null);
+				
+		//
+		int M_PriceList_ID = Env.getContextAsInt(ctx, WindowNo, "M_PriceList_ID");
+		pp.setM_PriceList_ID(M_PriceList_ID);
+		Timestamp orderDate = (Timestamp)mTab.getValue("MovementDate");
+		/** PLV is only accurate if PL selected in header */
+		int M_PriceList_Version_ID = Env.getContextAsInt(ctx, WindowNo, "M_PriceList_Version_ID");
+		if ( M_PriceList_Version_ID == 0 && M_PriceList_ID > 0)
+		{
+			String sql = "SELECT plv.M_PriceList_Version_ID "
+				+ "FROM M_PriceList_Version plv "
+				+ "WHERE plv.M_PriceList_ID=? "						//	1
+				+ " AND plv.ValidFrom <= ? "
+				+ "ORDER BY plv.ValidFrom DESC";
+			//	Use newest price list - may not be future
+			
+			M_PriceList_Version_ID = DB.getSQLValueEx(null, sql, M_PriceList_ID, orderDate);
+			if ( M_PriceList_Version_ID > 0 )
+				Env.setContext(ctx, WindowNo, "M_PriceList_Version_ID", M_PriceList_Version_ID );
+		}
+		pp.setM_PriceList_Version_ID(M_PriceList_Version_ID); 
+		pp.setPriceDate(orderDate);
+		//		
+		mTab.setValue("PriceActual", pp.getPriceStd());
+		return "";
+	}
+	
+	
+	
+	
 	
 }	//	CalloutOrder
 

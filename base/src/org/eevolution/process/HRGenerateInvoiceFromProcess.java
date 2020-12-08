@@ -30,11 +30,9 @@ import org.compiere.apps.AWindow;
 import org.compiere.model.I_C_BP_Relation;
 import org.compiere.model.I_C_BPartner_Location;
 import org.compiere.model.I_C_Charge_Acct;
-import org.compiere.model.MAccount;
 import org.compiere.model.MAcctSchema;
 import org.compiere.model.MBPartner;
 import org.compiere.model.MBPartnerLocation;
-import org.compiere.model.MCharge;
 import org.compiere.model.MChargeAcct;
 import org.compiere.model.MDocType;
 import org.compiere.model.MInvoice;
@@ -49,6 +47,7 @@ import org.compiere.util.Env;
 import org.compiere.util.Msg;
 import org.eevolution.model.I_HR_Employee;
 import org.eevolution.model.I_HR_Process;
+import org.eevolution.model.MHRAttribute;
 import org.eevolution.model.MHRConcept;
 import org.eevolution.model.MHRMovement;
 import org.eevolution.model.X_HR_Concept_Acct;
@@ -221,7 +220,11 @@ public class HRGenerateInvoiceFromProcess extends HRGenerateInvoiceFromProcessAb
 					Optional.ofNullable(movement.getHR_Payroll_ID()),
 					Optional.ofNullable(movement.getC_BPartner().getC_BP_Group_ID()));
 			//int accountID=conceptAcct.getHR_Revenue_A().getAccount_ID();
-			int conceptChargeID = get(acctSchema, conceptAcct.getHR_Revenue_Acct(), get_TrxName());
+			 MHRAttribute attribute = MHRAttribute.getByConceptIdAndPartnerId(movement.getCtx(), 
+					 movement.getHR_Concept_ID(), movement.getC_BPartner_ID(), movement.getValidFrom(), get_TrxName());
+             
+			//int conceptChargeID = get(acctSchema, conceptAcct.getHR_Revenue_Acct(), get_TrxName());
+				int conceptChargeID = attribute.getC_Charge_ID();
 			if(conceptChargeID<=0) {				
 					throw new AdempiereException("Falta definir un cargo para " + concept.getName());
 			}
