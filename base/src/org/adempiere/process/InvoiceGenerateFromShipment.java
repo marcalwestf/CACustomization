@@ -307,6 +307,7 @@ public class InvoiceGenerateFromShipment extends InvoiceGenerateFromShipmentAbst
 				addLog(Msg.getMsg(getCtx(), "GenerateInvoiceFromInOut.completeInvoice.Failed") + invoice); // Elaine 2008/11/25
 			} else  {
 				// Do print on FiscalPrinter after successful complete
+				invoice.saveEx();
 				String printMessage = null;
 				printMessage = printInvoice(invoice);
 				if (printMessage.length()>0) {
@@ -340,12 +341,11 @@ public class InvoiceGenerateFromShipment extends InvoiceGenerateFromShipmentAbst
 						.withRecordId(I_C_Invoice.Table_ID, invoice.getC_Invoice_ID())
 						.withoutTransactionClose()
 						.execute(invoice.get_TrxName());
+				invoice.set_ValueOfColumn("FiscalPrintDate", new Timestamp(System.currentTimeMillis()) );
+				invoice.setIsPrinted(true);					
+				
 				if(info.isError()) {
 					return info.getSummary();
-				}
-				else  {
-					invoice.set_ValueOfColumn("FiscalPrintDate", new Timestamp(System.currentTimeMillis()) );
-					invoice.setIsPrinted(true);					
 				}
 			}
 		}
