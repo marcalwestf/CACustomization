@@ -1188,6 +1188,17 @@ public class MHRProcess extends X_HR_Process implements DocAction , DocumentReve
 			createDummyMovement(concept);
 			return;
 		}
+		String calculationtype = attribute.get_ValueAsString("HRConceptCalculationType");
+		if (calculationtype == "")
+			calculationtype = "00";
+		if (getHR_Period_ID() != 0 && !calculationtype.equals("00")) {
+			String periodType = getHR_Period().getStartDate().compareTo(getHR_Period().getC_Period().getStartDate()) == 0?"01":"02";
+			if (!calculationtype.equals(periodType)) {
+				attribute = null;
+				createDummyMovement(concept);
+				return ;
+			}
+		}
 
 		logger.info(Msg.parseTranslation(getCtx(), "@HR_Concept_ID@ : ") + concept.getName());
 		MHRMovement movement = createMovement(concept, attribute, isPrinted);
@@ -1321,7 +1332,7 @@ public class MHRProcess extends X_HR_Process implements DocAction , DocumentReve
 		MHRConcept concept = MHRConcept.getByValue(getCtx(), conceptValue.trim(), get_TrxName());
 		if (concept == null)
 			return 0;
-
+		
 		MHRMovement movement = movements.get(concept.get_ID());
 		if (movement == null) {
 			createMovementFromConcept(concept, concept.isPrinted());
