@@ -308,12 +308,14 @@ public class InvoiceGenerateFromShipment extends InvoiceGenerateFromShipmentAbst
 			} else  {
 				// Do print on FiscalPrinter after successful complete
 				invoice.saveEx();
-				String printMessage = null;
-				printMessage = printInvoice(invoice);
-				if (printMessage.length()>0) {
-					log.severe("Printing Invoice - failed: " + invoice);
-					addLog(Msg.getMsg(getCtx(), "InvoiceGenerateFromShipment.PrintInvoice.Failed") + invoice);
-				} 
+				if (invoice.getDocStatus().equals(MInvoice.DOCSTATUS_Completed)) {
+					String printMessage = null;
+					printMessage = printInvoice(invoice);
+					if (printMessage.length()>0) {
+						log.severe("Printing Invoice - failed: " + invoice);
+						addLog(Msg.getMsg(getCtx(), "InvoiceGenerateFromShipment.PrintInvoice.Failed") + invoice );
+					}
+				}
 			}
 			invoice.saveEx();
 			//
