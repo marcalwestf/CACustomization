@@ -64,6 +64,7 @@ import org.compiere.model.MPaySelectionCheck;
 import org.compiere.model.MPaySelectionLine;
 import org.compiere.model.MPayment;
 import org.compiere.model.MPaymentTerm;
+import org.compiere.model.MPriceList;
 import org.compiere.model.MProduct;
 import org.compiere.model.MProductPO;
 import org.compiere.model.MProduction;
@@ -194,8 +195,8 @@ public class CAValidator implements ModelValidator
 		if (type == ModelValidator.TYPE_BEFORE_NEW || type == ModelValidator.TYPE_BEFORE_CHANGE ){
 			if (po.get_TableName().equals(MOrder.Table_Name)) {
 				error = User4Mandatory(po);
-				if (po.is_ValueChanged(MOrder.COLUMNNAME_C_BPartner_ID))
-					//error = upDateControlCredito(po)
+				if (po.is_ValueChanged(MOrder.COLUMNNAME_C_DocTypeTarget_ID) || po.is_ValueChanged(MOrder.COLUMNNAME_M_PriceList_ID))
+					error = controlPriceListDocType(po);
 					;
 				
 			}
@@ -1282,7 +1283,7 @@ public class CAValidator implements ModelValidator
 				|| invoiceLine.getC_Invoice().getM_RMA_ID() ==0)
 			return "";
 		if (invoiceLine.getM_Product_ID() > 0)
-			invoiceLine.setDescription(invoiceLine.getM_Product().getValue() + ", " + invoiceLine.getM_Product().getName()
+			invoiceLine.setDescription(invoiceLine.getM_Product().getValue() + "; " + invoiceLine.getM_Product().getName()
 					+ invoiceLine.getPriceActual().toString());
 		return "";
 	}
@@ -1330,7 +1331,7 @@ public class CAValidator implements ModelValidator
 				{}
 				pstmt = null;
 			}
-		return docNoList + "," + dateList;
+		return docNoList + ";" + dateList;
 	}
 	
 	private String controlInvoiceTax(PO po) {
@@ -1536,6 +1537,21 @@ public class CAValidator implements ModelValidator
 		
 		return new Timestamp (cal.getTimeInMillis());
 	}	//	nextBusinessDay	
+	 
+	 private String controlPriceListDocType(PO po) {
+		 String error = "";
+		 MOrder order = (MOrder)po;
+		 if (!order.isSOTrx())
+			 return "";
+		 MDocType docType = (MDocType)order.getC_DocTypeTarget();
+		 if (docType.getDocSubTypeSO().equals(MDocType.DOCSUBTYPESO_WarehouseOrder)
+				 || docType.getDocSubTypeSO().equals(MDocType.DOCSUBTYPESO_ReturnMaterial))
+			 return "";
+		 Boolean isTaxIncluded = docType.get_ValueAsBoolean(MPriceList.COLUMNNAME_IsTaxIncluded);
+		 if (isTaxIncluded != order.getM_PriceList().isTaxIncluded())
+			 error = "Lista de Precio y Tipo de documento no coinciden ";
+		 return error;
+	 }
 	
 
 	
