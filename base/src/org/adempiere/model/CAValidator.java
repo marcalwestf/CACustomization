@@ -32,6 +32,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 
 import org.adempiere.exceptions.AdempiereException;
+import org.apache.tools.ant.types.resources.selectors.InstanceOf;
 import org.compiere.acct.Doc;
 import org.compiere.acct.Fact;
 import org.compiere.acct.FactLine;
@@ -91,6 +92,7 @@ import org.compiere.util.DB;
 import org.compiere.util.Env;
 import org.compiere.util.Language;
 import org.compiere.util.Msg;
+import org.compiere.util.Trx;
 import org.eevolution.model.MDDOrder;
 import org.eevolution.model.MHRAttribute;
 import org.eevolution.model.MHRConcept;
@@ -234,7 +236,23 @@ public class CAValidator implements ModelValidator
 			 if (po instanceof MProductPO) {
 				 error = productPOCheckCurrentVendor(po);
 			 }
+			 
 		}
+
+		 if (po instanceof MOrderLine) 
+		 {
+			 if (type == ModelValidator.TYPE_AFTER_NEW) {
+				 error = updateCreditLimitControl(po);
+			 }
+			 else if (type == ModelValidator.TYPE_AFTER_CHANGE)				 
+			 {
+				 if ( (po.is_ValueChanged(MOrderLine.COLUMNNAME_M_Product_ID)
+						 || po.is_ValueChanged(MOrderLine.COLUMNNAME_PriceEntered)
+						 ||po.is_ValueChanged(MOrderLine.COLUMNNAME_QtyEntered))) {
+					 error = updateCreditLimitControl(po);
+				 }			 
+			 }		 
+		 }
 
 		if (type == ModelValidator.TYPE_AFTER_CHANGE ){
 			if (po.get_TableName().equals(MOrder.Table_Name))
@@ -403,16 +421,18 @@ public class CAValidator implements ModelValidator
 		return "";
 	}
 	
-	private String AfterPrepareIsControlLimitPrice(PO po) {   
+	private String beforeCompleteIsControlLimitPrice(PO po) {   
 		String result = "";
 		MOrder order = (MOrder)po;
 		if (!order.isSOTrx())
 			return result;
-		
+		if (!order.get_ValueAsBoolean("isControlLimitPrice")) {			
+			return "";
+		}
 		StringBuffer sqlRole = new StringBuffer();
 		sqlRole.append("SELECT count(*) FROM AD_Role r  WHERE r.IsActive='Y' ");
 		sqlRole.append("	AND EXISTS (SELECT * FROM AD_User_Roles ur");
-		sqlRole.append("	WHERE r.AD_Role_ID=ur.AD_Role_ID AND ur.IsActive='Y' AND ur.AD_User_ID=?) ");
+		sqlRole.append("	WHERE r.AD_Role_ID=ur.AD_Role_ID  AND ur.AD_User_ID=?) ");
 		sqlRole.append("	AND r.IsDiscountUptoLimitPrice = 'N' ");
 		int noRole = DB.getSQLValueEx(order.get_TrxName(), sqlRole.toString(), Env.getAD_User_ID(order.getCtx()));
 		if (noRole>0) {
@@ -421,9 +441,48 @@ public class CAValidator implements ModelValidator
 			order.saveEx();
 			return result;			
 		}
-		if (order.get_ValueAsBoolean("isControlLimitPrice"))
-			result = "Excede Limite de Precio";
+		else {
+
+			result = "Excede Limite de Precio";		
+			}
 		return result;
+	}
+	
+	private String updateCreditLimitControl(PO po) {	
+		MOrderLine orderLine = (MOrderLine)po;
+		if (orderLine.getParent().isSOTrx()) {
+			String sql = "";
+			int no = 0;
+			ArrayList<Object> params = new ArrayList<Object>();
+			BigDecimal creditLimit = orderLine.getParent().getC_BPartner().getSO_CreditLimit();
+			BigDecimal openBalance  = orderLine.getParent().getC_BPartner().getTotalOpenBalance();
+			if (openBalance.compareTo(Env.ZERO) <= 0)
+				return "";
+			String rejectStatus = (creditLimit.compareTo(orderLine.getParent().getGrandTotal().add(openBalance)) < 0)
+					&& (creditLimit.compareTo(Env.ZERO)) > 0?"CL":"NO";			
+					params.add(rejectStatus);
+					sql = "UPDATE C_Order i "
+							+ " SET DocStatus_RejectStatus= ?"
+							+ " WHERE C_Order_ID=" + orderLine.getC_Order_ID();				
+					no = DB.executeUpdateEx(sql, params.toArray(), po.get_TrxName());
+					if (!rejectStatus.equals("NO"))
+						return "";
+					sql = "SELECT 1 "
+							+ "FROM C_Invoice i "
+							+ "LEFT JOIN C_PaymentTerm pt ON(pt.C_PaymentTerm_ID = i.C_PaymentTerm_ID) "
+							+ "WHERE i.IsSotrx = 'Y' "
+							+ "AND i.C_BPartner_ID=? "
+							+ "AND i.IsPaid = 'N' "
+							+ "AND (paymenttermDueDays(i.C_PaymentTerm_ID, i.DateInvoiced, getDate()) - pt.GraceDays) > 0";
+					int noInvoicesDue = DB.getSQLValueEx(null, sql, orderLine.getParent().getC_BPartner_ID());
+					if (noInvoicesDue>0) {
+						sql = "UPDATE C_Order i "
+								+ " SET DocStatus_RejectStatus='DI' "
+								+ "WHERE C_Order_ID=" + orderLine.getC_Order_ID();
+						no = DB.executeUpdate(sql, po.get_TrxName());			
+					}
+		}
+		return "";
 	}
 	
 	private String updatePriceLimitControl(PO po) {	
@@ -440,27 +499,63 @@ public class CAValidator implements ModelValidator
 		return "";
 	}
 	
-	private String AfterPrepareOrderControlCreditStop(PO po) {  
+	
+	private String beforeCompleteOrderControlCreditStop(PO po) {  
 		MOrder order = (MOrder)po;
 		String result = "";
-		if (!order.isSOTrx())
+		BigDecimal newAmt = order.getC_BPartner().getTotalOpenBalance().add(order.getGrandTotal());
+		BigDecimal creditLimit = order.getC_BPartner().getSO_CreditLimit();
+		if (!order.isSOTrx() 
+        		|| order.getC_BPartner().getSO_CreditLimit() == Env.ZERO
+        		|| order.getC_BPartner().getTotalOpenBalance().compareTo(Env.ZERO) <=0)
 			return result;
-		
+		BigDecimal additionalAmt = order.getGrandTotal();
 		StringBuffer sqlRole = new StringBuffer();
 		sqlRole.append("SELECT count(*) FROM AD_Role r  WHERE r.IsActive='Y' ");
 		sqlRole.append("	AND EXISTS (SELECT * FROM AD_User_Roles ur");
-		sqlRole.append("	WHERE r.AD_Role_ID=ur.AD_Role_ID AND ur.IsActive='Y' AND ur.AD_User_ID=?) ");
-		sqlRole.append("	AND r.iscanapprovecreditlimit = 'Y' ");
+		sqlRole.append("	WHERE r.AD_Role_ID=ur.AD_Role_ID AND ur.AD_User_ID=?) ");
+		sqlRole.append("	AND r.IsCanApproveCreditLimit = 'Y' ");
 		int noRole = DB.getSQLValueEx(order.get_TrxName(), sqlRole.toString(), Env.getAD_User_ID(order.getCtx()));
 		if (noRole>0) {
-			
-			return result;	
-			}
-		
-		if(!order.get_ValueAsString("DocStatus_RejectStatus").equals("NO")) {
-			result = "Aprobar Credito";
+			//order.set_ValueOfColumn("DocStatus_RejectStatus", "NO");
+			order.set_ValueOfColumn("creditApprovedBy", Env.getAD_User_ID(order.getCtx()));
+			order.saveEx();
+			return result;			
 		}
-		return result;
+		
+		if (additionalAmt == null || additionalAmt.signum() == 0)
+			return "";
+		//
+		//	Nothing to do
+		if (creditLimit.compareTo(newAmt) < 0) {
+			return "Venta exede Limite de Credito";
+		}
+		//	Above (reduced) Credit Limit
+		
+			int noInvoicesDue = 0;
+			StringBuffer sql = new StringBuffer("SELECT 1 "
+					+ "FROM C_Invoice i "
+					+ "LEFT JOIN C_PaymentTerm pt ON(pt.C_PaymentTerm_ID = i.C_PaymentTerm_ID) "
+					+ "WHERE i.IsSotrx = 'Y' "
+					+ "AND i.C_BPartner_ID=? "
+					+ "AND i.IsPaid = 'N' "
+					+ "AND (paymenttermDueDays(i.C_PaymentTerm_ID, i.DateInvoiced, getDate()) - pt.GraceDays) > 0");
+			if(order.getC_BPartner().getDunningGrace() != null) {
+				sql.append(" AND paymenttermDueDate(i.C_PaymentTerm_ID, i.DateInvoiced) >= ?");
+				noInvoicesDue = DB.getSQLValueEx(null, sql.toString(), order.getC_BPartner_ID(), order.getC_BPartner().getDunningGrace());
+			} else {
+				noInvoicesDue = DB.getSQLValueEx(null, sql.toString(), order.getC_BPartner_ID());
+			}
+			if (noInvoicesDue == 1) {
+				order.set_ValueOfColumn("DocStatus_RejectStatus", "DI");
+				order.saveEx();
+				return "Cliente tiene facturas pendientes";
+			}
+
+		//	is OK
+		order.saveEx();
+		return "";
+	
 	}
 	
 	private String upDateControlCredito(PO po) {
@@ -897,11 +992,8 @@ public class CAValidator implements ModelValidator
         	if (po instanceof MInvoice) {
 
 				error = UpdateCreditMemo(po);
-        	}
+        	}   	
         	
-        	if (po instanceof MOrder) {
-        		error = AfterPrepareIsControlLimitPrice(po);
-        	}
 ;        }
         if (ModelValidator.TIMING_BEFORE_VOID == timing) {
         	if (po instanceof MPaySelection)
@@ -909,8 +1001,17 @@ public class CAValidator implements ModelValidator
         }
         
         if (ModelValidator.TIMING_BEFORE_COMPLETE == timing) {
-        	if (po instanceof MOrder)
+        	if (po instanceof MOrder) {
         		error = testQtyOnhand(po);
+        		if (!error.equals("")) {
+        			return error;
+        		}	
+        	    error = beforeCompleteIsControlLimitPrice(po);
+        	    if (!error.equals("")) {
+        			return error;
+        		}	
+                error = beforeCompleteOrderControlCreditStop(po);
+        	}
         }
         
 		return error;
