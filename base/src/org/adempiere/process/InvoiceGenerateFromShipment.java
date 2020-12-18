@@ -41,6 +41,7 @@ import org.compiere.util.DisplayType;
 import org.compiere.util.Env;
 import org.compiere.util.Language;
 import org.compiere.util.Msg;
+import org.compiere.util.Trx;
 import org.eevolution.service.dsl.ProcessBuilder;
 import org.spin.process.InvoiceFiscalPrint;
 
@@ -309,6 +310,8 @@ public class InvoiceGenerateFromShipment extends InvoiceGenerateFromShipmentAbst
 				// Do print on FiscalPrinter after successful complete
 				invoice.saveEx();
 				if (invoice.getDocStatus().equals(MInvoice.DOCSTATUS_Completed)) {
+					Trx dbTransaction = Trx.get(invoice.get_TrxName(), false);
+					dbTransaction.commit();
 					String printMessage = null;
 					printMessage = printInvoice(invoice);
 					if (printMessage.length()>0) {
