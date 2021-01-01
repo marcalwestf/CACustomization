@@ -194,6 +194,9 @@ public class GenerateInOutBound extends GenerateInOutBoundAbstract {
 					
 			BigDecimal movementqty = qtyOnHand.compareTo(qtyToDeliver)>=0? qtyToDeliver
 							: qtyOnHand;
+			if (!product.getProductType().equals(MProduct.PRODUCTTYPE_Item)) {
+				movementqty = qtyToDeliver;
+			}
 			inOutBoundLine.setM_Product_ID(orderLine.getM_Product_ID());
 			inOutBoundLine.setM_AttributeSetInstance_ID(orderLine.getM_AttributeSetInstance_ID());
 			inOutBoundLine.setMovementQty(movementqty);

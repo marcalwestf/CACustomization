@@ -27,7 +27,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
 import java.util.GregorianCalendar;
+import java.util.Hashtable;
 import java.util.List;
+import java.util.Properties;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 
@@ -36,6 +38,7 @@ import org.apache.tools.ant.types.resources.selectors.InstanceOf;
 import org.compiere.acct.Doc;
 import org.compiere.acct.Fact;
 import org.compiere.acct.FactLine;
+import org.compiere.model.GridTab;
 import org.compiere.model.MAllocationHdr;
 import org.compiere.model.MBPartner;
 import org.compiere.model.MBank;
@@ -48,6 +51,7 @@ import org.compiere.model.MCommissionAmt;
 import org.compiere.model.MCommissionDetail;
 import org.compiere.model.MConversionRate;
 import org.compiere.model.MCostDetail;
+import org.compiere.model.MCurrency;
 import org.compiere.model.MDocType;
 import org.compiere.model.MElementValue;
 import org.compiere.model.MFactAcct;
@@ -58,8 +62,10 @@ import org.compiere.model.MInvoice;
 import org.compiere.model.MInvoiceLine;
 import org.compiere.model.MInvoiceTax;
 import org.compiere.model.MMovement;
+import org.compiere.model.MMovementLine;
 import org.compiere.model.MOrder;
 import org.compiere.model.MOrderLine;
+import org.compiere.model.MOrderTax;
 import org.compiere.model.MPaySelection;
 import org.compiere.model.MPaySelectionCheck;
 import org.compiere.model.MPaySelectionLine;
@@ -74,6 +80,7 @@ import org.compiere.model.MProject;
 import org.compiere.model.MProjectIssue;
 import org.compiere.model.MProjectLine;
 import org.compiere.model.MRequisition;
+import org.compiere.model.MStorage;
 import org.compiere.model.MTax;
 import org.compiere.model.MTaxCategory;
 import org.compiere.model.MTaxDeclarationLine;
@@ -84,9 +91,13 @@ import org.compiere.model.ModelValidationEngine;
 import org.compiere.model.ModelValidator;
 import org.compiere.model.PO;
 import org.compiere.model.Query;
+import org.compiere.model.X_C_BPartner;
+import org.compiere.model.X_C_Invoice;
 import org.compiere.model.X_C_Payment;
+import org.compiere.model.X_M_Product;
 import org.compiere.process.DocAction;
 import org.compiere.sqlj.Adempiere;
+import org.compiere.util.CLogMgt;
 import org.compiere.util.CLogger;
 import org.compiere.util.DB;
 import org.compiere.util.Env;
@@ -229,9 +240,9 @@ public class CAValidator implements ModelValidator
 			 if (po.get_TableName().equals(MPayment.Table_Name)) {
 				 error = UpdatePaymentWithholing(po);
 			 }
-			 if (po instanceof MInvoiceTax) {
-				 error = controlInvoiceTax(po);
-			 }
+			 //if (po instanceof MInvoiceTax) {
+			//	 error = controlInvoiceTax(po);
+			 //}
 			 
 			 if (po instanceof MProductPO) {
 				 error = productPOCheckCurrentVendor(po);
@@ -293,8 +304,34 @@ public class CAValidator implements ModelValidator
 				error = allocationHdrBeforeDelete(po);
 		}
 		
-		
-		
+		if (type == ModelValidator.TYPE_BEFORE_CHANGE || type == ModelValidator.TYPE_BEFORE_NEW) {
+			if ((po.get_ColumnIndex("C_BPartner_ID") > 0 && po.is_ValueChanged("C_BPartner_ID")) 
+				&& po.get_ColumnIndex(X_C_Invoice.COLUMNNAME_User2_ID) > 0) {
+				int C_BPartner_ID = po.get_ValueAsInt("C_BPartner_ID");
+				ArrayList<Object> params = new ArrayList<>();
+				params.add(C_BPartner_ID);
+				params.add(Env.getAD_Client_ID(po.getCtx()));
+				BigDecimal User2_ID = DB.getSQLValueBD(po.get_TrxName(), 
+						"select getUser2_ID(?,?) ",
+						params);
+				po.set_ValueOfColumn(X_C_Invoice.COLUMNNAME_User2_ID, User2_ID);
+			}
+			if ((po.get_ColumnIndex("M_Product_ID") > 0
+					&& po.is_ValueChanged("M_Product_ID")) && po.get_ColumnIndex(X_C_Invoice.COLUMNNAME_User1_ID) > 0) {
+				int M_Product_ID = po.get_ValueAsInt("M_Product_ID");
+				ArrayList<Object> params = new ArrayList<>();
+				params.add(M_Product_ID);
+				params.add(Env.getAD_Client_ID(po.getCtx()));
+				BigDecimal User1_ID = DB.getSQLValueBD(po.get_TrxName(), 
+						"select getUser1_ID(?,?) ", params);
+				po.set_ValueOfColumn(X_C_Invoice.COLUMNNAME_User1_ID, User1_ID);
+				BigDecimal User3_ID = DB.getSQLValueBD(po.get_TrxName(), 
+						"Select getUser3_ID(?,?) ",params);
+				po.set_ValueOfColumn(X_C_Invoice.COLUMNNAME_User3_ID, User3_ID);
+			}
+
+
+		}
 		return error;
 	}
 
@@ -993,6 +1030,9 @@ public class CAValidator implements ModelValidator
 
 				error = UpdateCreditMemo(po);
         	}   	
+        	if (po instanceof MMovement) {
+        		error = movementBeforePrepare(po);
+        	}
         	
 ;        }
         if (ModelValidator.TIMING_BEFORE_VOID == timing) {
@@ -1436,34 +1476,16 @@ public class CAValidator implements ModelValidator
 	}
 	
 	private String controlInvoiceTax(PO po) {
-		MInvoiceTax invoiceTax = (MInvoiceTax)po;
-		if (invoiceTax.getC_Invoice().isSOTrx()==false)
-			return"";
-		boolean notcontrol = invoiceTax.getTaxAmt().signum()==0 || invoiceTax.getC_Invoice().getM_PriceList().isTaxIncluded()==true;
-		if (notcontrol)
+		MInvoice invoice = (MInvoice)po;
+		BigDecimal totallines = invoice.getTotalLines().setScale(2);
+		String sql = "select sum(round(linenetamt, 2)) from c_INvoiceline ivl where ivl.c_INvoice_ID=?";
+		BigDecimal totallines_Rounded = 
+				DB.getSQLValueBDEx(po.get_TrxName(), sql, invoice.getC_Invoice_ID());
+		BigDecimal diff = totallines.subtract(totallines_Rounded);
+		if (diff.compareTo(Env.ZERO) == 0)
 			return "";
-		MTax tax = (MTax)invoiceTax.getC_Tax();
-		BigDecimal taxAmt = tax.calculateTax(invoiceTax.getTaxBaseAmt(), invoiceTax.getC_Invoice().getM_PriceList().isTaxIncluded(), 
-				invoiceTax.getC_Invoice().getC_Currency().getStdPrecision());
-
 		
-		  BigDecimal difference = invoiceTax.getTaxAmt().subtract(taxAmt); 
-		  if
-		  (taxAmt.compareTo(invoiceTax.getTaxAmt()) != 0) {
-		  invoiceTax.setTaxAmt(taxAmt); 
-			/*
-			 * List<MInvoiceTax> invoiceTaxes = new Query(po.getCtx(),
-			 * MInvoiceTax.Table_Name, "C_Invoice_ID=?", po.get_TrxName())
-			 * .setOnlyActiveRecords(true) .setParameters(invoiceTax.getC_Invoice_ID())
-			 * .list(); BigDecimal totalAmt = Env.ZERO; for (MInvoiceTax
-			 * invoiceTax2:invoiceTaxes) { totalAmt =
-			 * totalAmt.add(invoiceTax2.getTaxAmt().add(invoiceTax2.getTaxBaseAmt())); }
-			 * MInvoice invoice = (MInvoice)invoiceTax.getC_Invoice();
-			 * invoice.setGrandTotal(totalAmt); invoice.saveEx();
-			 */
-		  } 
-		  return "";	 
-		
+		return "";		
 	}
 
 	private String testQtyOnhand(PO po) {
@@ -1653,7 +1675,98 @@ public class CAValidator implements ModelValidator
 			 error = "Lista de Precio y Tipo de documento no coinciden ";
 		 return error;
 	 }
-	
+	 
+	 private String OrderBeforePrepare(PO po) {
+		 MOrder order = (MOrder)po;
+		 int stdPrecision = MCurrency.getStdPrecision(po.getCtx(), order.getC_Currency_ID());
+		 if (order.getTotalLines().scale() > stdPrecision) {
+			 BigDecimal totalLinesRounded = Env.ZERO;
+			 for (MOrderLine orderLine: order.getLines()) {
+				 BigDecimal linenetamt = orderLine.getLineNetAmt().setScale(stdPrecision, BigDecimal.ROUND_HALF_UP);
+				 orderLine.saveEx();
+				 totalLinesRounded = totalLinesRounded.add(linenetamt);
+			 }
+			 order.setTotalLines(totalLinesRounded);
+		 }
+		 return "";
+	 }
+	 
+	 private Boolean checkQtyOnHand(MMovementLine movementLine) {
+			// Begin Armen 2006/10/01
+			if (movementLine.getM_Product_ID() != 0) {
+				if (movementLine.getM_Product().isStocked()) {					
+					int M_Locator_ID = movementLine.getM_Locator_ID();
+					BigDecimal qtyOnHand = getQtyOnHand(M_Locator_ID, movementLine.getM_Product_ID(), 
+							movementLine.getM_AttributeSetInstance_ID(), movementLine.get_TrxName());
+					if (qtyOnHand == null)
+						qtyOnHand = Env.ZERO;
+					if (qtyOnHand.compareTo(movementLine.getMovementQty()) < 0)
+						return false;
+				}
+			}
+			return true;
+	 }
+	 
+
+		
+		/**
+		 * Get Warehouse/Locator Available Qty.
+		 * The call is accurate only if there is a storage record 
+		 * and assumes that the product is stocked 
+		 * @param M_Warehouse_ID wh (if the M_Locator_ID!=0 then M_Warehouse_ID is ignored)
+		 * @param M_Locator_ID locator (if 0, the whole warehouse will be evaluated)
+		 * @param M_Product_ID product
+		 * @param M_AttributeSetInstance_ID masi
+		 * @param trxName transaction
+		 * @return qty available (QtyOnHand-QtyReserved) or null if error
+		 */
+		public  BigDecimal getQtyOnHand (int M_Locator_ID, 
+			int M_Product_ID, int M_AttributeSetInstance_ID, String trxName)
+		{
+			ArrayList<Object> params = new ArrayList<Object>();
+			StringBuffer sql = new StringBuffer("SELECT COALESCE(SUM(s.QtyOnHand),0)")
+									.append(" FROM M_Storage s")
+									.append(" WHERE s.M_Product_ID=?");
+			params.add(M_Product_ID);
+			// Warehouse level
+			// Locator level
+				sql.append(" AND s.M_Locator_ID=?");
+				params.add(M_Locator_ID);
+			// With ASI
+			if (M_AttributeSetInstance_ID != 0) {
+				sql.append(" AND s.M_AttributeSetInstance_ID=?");
+				params.add(M_AttributeSetInstance_ID);
+			}
+			//
+			BigDecimal retValue = DB.getSQLValueBD(trxName, sql.toString(), params);
+			return retValue;
+		}	//	getQtyOnHand
+		
+		private String movementBeforePrepare(PO po) {
+			Hashtable<Integer, BigDecimal> storages = new Hashtable<Integer, BigDecimal>();
+			MMovement movement = (MMovement)po;
+			String errorMsg = "";
+			BigDecimal qtyAvailable = Env.ZERO;
+			for (MMovementLine movementLine: movement.getLines(true)) {
+				int key = movementLine.getM_Product_ID() + movementLine.getM_AttributeSetInstance_ID() + movementLine.getM_Locator_ID();
+				qtyAvailable = storages.get(key);			
+				if(qtyAvailable == null) {
+				qtyAvailable = getQtyOnHand( movementLine.getM_Locator_ID(),
+							movementLine.getM_Product_ID(),movementLine.getM_AttributeSetInstance_ID(), po.get_TrxName());
+					storages.put(key, qtyAvailable);
+				}
+				qtyAvailable = qtyAvailable.subtract(movementLine.getMovementQty());
+				storages.replace(key, qtyAvailable);
+				if (qtyAvailable.compareTo(Env.ZERO)<0) {					
+					errorMsg = Msg.translate(po.getCtx(), "InsufficientQtyAvailable") + " " + movementLine.getM_Product().getName();
+				break;
+				}
+			}			
+			return errorMsg;
+		}
+		
+			
+		
 
 	
 }	//	Validator
