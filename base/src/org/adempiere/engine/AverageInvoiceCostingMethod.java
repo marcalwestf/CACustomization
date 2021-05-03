@@ -141,13 +141,13 @@ public class AverageInvoiceCostingMethod extends AbstractCostingMethod
 					MCostDetail receiptCostDetail = MCostDetail.get(model.getCtx(),whereClause.toString(),
 							((MMatchInv) model).getM_InOutLine_ID(),
 							model.getM_AttributeSetInstance_ID(), dimension.getC_AcctSchema_ID(), model.get_TrxName());
-					provisionOfPurchaseCost = receiptCostDetail.getCostAmt();
-					provisionOfPurchaseCostLL =  receiptCostDetail.getCostAmtLL();
+					provisionOfPurchaseCost =  receiptCostDetail.getCurrentCostPrice().multiply(model.getMovementQty());
+					provisionOfPurchaseCostLL =   receiptCostDetail.getCurrentCostPriceLL().multiply(model.getMovementQty());
 				}
 				else
 				{
-					provisionOfPurchaseCost = lastCostDetail.getCostAmt();
-					provisionOfPurchaseCostLL =  lastCostDetail.getCostAmtLL();
+					provisionOfPurchaseCost = lastCostDetail.getCurrentCostPrice().multiply(model.getMovementQty());
+					provisionOfPurchaseCostLL =  lastCostDetail.getCurrentCostPriceLL().multiply(model.getMovementQty());
 				}
 				MMatchInv iMatch =  (MMatchInv) model;
 				//lastCostDetail.setC_InvoiceLine_ID(iMatch.getC_InvoiceLine_ID());
