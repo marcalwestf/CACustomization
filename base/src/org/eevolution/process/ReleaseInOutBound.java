@@ -116,6 +116,7 @@ public class ReleaseInOutBound extends ReleaseInOutBoundAbstract {
             if (DocAction.STATUS_Drafted.equals(outboundOrder.getDocStatus()) || DocAction.STATUS_InProgress.equals(outboundOrder.getDocStatus())) {
                 outboundOrder.setDocAction(DocAction.ACTION_Complete);
                 outboundOrder.processIt(DocAction.ACTION_Complete);
+                outboundOrder.setDocStatus(MDDOrder.DOCSTATUS_Completed);
                 outboundOrder.saveEx();
             }
         });
@@ -140,7 +141,7 @@ public class ReleaseInOutBound extends ReleaseInOutBoundAbstract {
 
         Optional.ofNullable(getDocAction()).flatMap(docAction -> Optional.ofNullable(orderDistribution)).ifPresent(order -> {
             order.setDocAction(getDocAction());
-            order.processIt(getDocAction());
+            order.processIt(DocAction.ACTION_Complete);
             order.saveEx();
         });
         Optional.ofNullable(orderDistribution).ifPresent(order -> {
@@ -229,10 +230,10 @@ public class ReleaseInOutBound extends ReleaseInOutBoundAbstract {
                                 orderLine.setIsInvoiced(false);
 
                                 if (balanceQtyToPick.compareTo(storage.getQtyOnHand()) < 0) {
-                                    orderLine.setConfirmedQty(outboundLine.getQtyToPick());
-                                    orderLine.setQtyEntered(outboundLine.getQtyToPick());
-                                    orderLine.setQtyOrdered(outboundLine.getQtyToPick());
-                                    orderLine.setTargetQty(outboundLine.getQtyToPick());
+                                    orderLine.setConfirmedQty(balanceQtyToPick);
+                                    orderLine.setQtyEntered(balanceQtyToPick);
+                                    orderLine.setQtyOrdered(balanceQtyToPick);
+                                    orderLine.setTargetQty(balanceQtyToPick);
                                     orderLine.setM_AttributeSetInstance_ID(storage.getM_AttributeSetInstance_ID());
                                     orderLine.setM_AttributeSetInstanceTo_ID(storage.getM_AttributeSetInstance_ID());
                                     qtySupply.updateAndGet(supply -> supply.add(balanceQtyToPick));

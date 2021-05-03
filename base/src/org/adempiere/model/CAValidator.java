@@ -29,19 +29,15 @@ import java.util.Calendar;
 import java.util.GregorianCalendar;
 import java.util.Hashtable;
 import java.util.List;
-import java.util.Properties;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 
 import org.adempiere.exceptions.AdempiereException;
-import org.apache.tools.ant.types.resources.selectors.InstanceOf;
 import org.compiere.acct.Doc;
 import org.compiere.acct.Fact;
 import org.compiere.acct.FactLine;
-import org.compiere.model.GridTab;
 import org.compiere.model.MAllocationHdr;
 import org.compiere.model.MBPartner;
-import org.compiere.model.MBank;
 import org.compiere.model.MBankAccount;
 import org.compiere.model.MBankStatement;
 import org.compiere.model.MBankStatementLine;
@@ -61,11 +57,11 @@ import org.compiere.model.MInventory;
 import org.compiere.model.MInvoice;
 import org.compiere.model.MInvoiceLine;
 import org.compiere.model.MInvoiceTax;
+import org.compiere.model.MLocator;
 import org.compiere.model.MMovement;
 import org.compiere.model.MMovementLine;
 import org.compiere.model.MOrder;
 import org.compiere.model.MOrderLine;
-import org.compiere.model.MOrderTax;
 import org.compiere.model.MPaySelection;
 import org.compiere.model.MPaySelectionCheck;
 import org.compiere.model.MPaySelectionLine;
@@ -80,31 +76,28 @@ import org.compiere.model.MProject;
 import org.compiere.model.MProjectIssue;
 import org.compiere.model.MProjectLine;
 import org.compiere.model.MRequisition;
-import org.compiere.model.MStorage;
 import org.compiere.model.MTax;
 import org.compiere.model.MTaxCategory;
 import org.compiere.model.MTaxDeclarationLine;
 import org.compiere.model.MTimeExpense;
 import org.compiere.model.MTimeExpenseLine;
 import org.compiere.model.MUOM;
+import org.compiere.model.MWarehouse;
 import org.compiere.model.ModelValidationEngine;
 import org.compiere.model.ModelValidator;
 import org.compiere.model.PO;
 import org.compiere.model.Query;
-import org.compiere.model.X_C_BPartner;
 import org.compiere.model.X_C_Invoice;
 import org.compiere.model.X_C_Payment;
-import org.compiere.model.X_M_Product;
 import org.compiere.process.DocAction;
 import org.compiere.sqlj.Adempiere;
-import org.compiere.util.CLogMgt;
 import org.compiere.util.CLogger;
 import org.compiere.util.DB;
 import org.compiere.util.Env;
 import org.compiere.util.Language;
 import org.compiere.util.Msg;
-import org.compiere.util.Trx;
 import org.eevolution.model.MDDOrder;
+import org.eevolution.model.MDDOrderLine;
 import org.eevolution.model.MHRAttribute;
 import org.eevolution.model.MHRConcept;
 import org.eevolution.model.MHREmployee;
@@ -184,6 +177,7 @@ public class CAValidator implements ModelValidator
 		engine.addDocValidate(MAllocationHdr.Table_Name, this);
 		engine.addDocValidate(MInOut.Table_Name, this);
 		engine.addDocValidate(MInvoice.Table_Name, this);
+		engine.addDocValidate(MDDOrder.Table_Name, this);
 		
 		
 		//	Documents to be monitored
@@ -214,9 +208,7 @@ public class CAValidator implements ModelValidator
 				
 			}
 			if(po.get_TableName().equals(MInvoice.Table_Name)) {
-
-				error = InvoiceTypeTaxDeclaration(po);	
-			}
+}
 			if (po.get_TableName().equals(MTimeExpenseLine.Table_Name))
 				error = calculateLabourCost(po);
 			if (po.get_TableName().equals(MOrderLine.Table_Name)
@@ -279,6 +271,10 @@ public class CAValidator implements ModelValidator
 					|| po instanceof MElementValue || po instanceof MTax || po instanceof MTaxCategory || po instanceof MPaymentTerm) {
 				error = updateTranslation(po);
 			}
+			
+			if (po instanceof MDDOrderLine
+					&& (TYPE_AFTER_CHANGE == type && po.is_ValueChanged(MDDOrderLine.COLUMNNAME_QtyDelivered)))
+				error = updateWMInOutBoundLine(po);
 			
 		}
 		if (type == ModelValidator.TYPE_BEFORE_NEW ) {
@@ -1006,15 +1002,13 @@ public class CAValidator implements ModelValidator
         		error = updateUser4Order(po);
         	if (po instanceof MInOut)
         		error = updateUser4MaterialReceipt(po);
+        	if (po instanceof MMovement)
+        		error = updateDDOrderLine(po);
         }
         if (ModelValidator.TIMING_AFTER_PREPARE == timing) {
-        	if (po instanceof MBankStatement) {
-        		//error = bs_AfterPrepare(po);
-        		//error = bs_AfterPrepare_CreatePayment(po);
-        	}
+        	
         	if (po instanceof MOrder) {
         		error = OrderSetPrecision(po);
-        		//error = AfterPrepareOrderControlCreditStop(po);
         	}
         	if (po instanceof MInvoice) {
         		error = InvoiceSetPrecision(po);
@@ -1031,9 +1025,11 @@ public class CAValidator implements ModelValidator
 				error = UpdateCreditMemo(po);
         	}   	
         	if (po instanceof MMovement) {
-        		error = movementBeforePrepare(po);
+        		error = movementBeforePrepare(po);        		
         	}
-        	
+        	if (po instanceof MInOut) {
+        		error = inoutLineSetOrderLine(po);
+        	}
 ;        }
         if (ModelValidator.TIMING_BEFORE_VOID == timing) {
         	if (po instanceof MPaySelection)
@@ -1424,7 +1420,7 @@ public class CAValidator implements ModelValidator
 				|| invoiceLine.getC_Invoice().getM_RMA_ID() ==0)
 			return "";
 		if (invoiceLine.getM_Product_ID() > 0)
-			invoiceLine.setDescription(invoiceLine.getM_Product().getValue() + "; " + invoiceLine.getM_Product().getName()
+			invoiceLine.setDescription(invoiceLine.getM_Product().getValue() + "; " + invoiceLine.getM_Product().getName() + "; " 
 					+ invoiceLine.getPriceActual().toString());
 		return "";
 	}
@@ -1433,20 +1429,20 @@ public class CAValidator implements ModelValidator
 		String docNoList = "";
 		String dateList = "";
 		
-			String sql = "SELECT distinct iorg.documentno, iorg.dateInvoiced i FROM C_Invoice i " + 
+			String sql = "SELECT distinct iorg.documentno, iorg.dateInvoiced, iorg.docstatus FROM C_Invoice i " + 
 					" INNER JOIN C_InvoiceLine ivl on i.c_INvoice_ID=ivl.c_Invoice_ID " + 
 					" INNER JOIN C_OrderLine ol on ivl.C_OrderLine_ID=ol.c_OrderLine_ID " + 
 					" LEFT JOIN c_InvoiceLine il on il.c_OrderLIne_ID=ol.c_OrderLine_ID and il.c_INvoiceline_ID <> ivl.c_INvoiceline_ID " + 
 					" LEFT JOIN C_Invoice iorg on il.c_Invoice_ID=iorg.c_Invoice_ID\r\n" + 
-					" WHERE i.C_Invoice_ID=? and iorg.docstatus in ('CO','CL', 'VO')";
+					" WHERE i.C_Invoice_ID=? and iorg.docstatus in ('CO','CL', 'VO') order by iorg.docstatus ";
 			PreparedStatement pstmt = null;
 			try
 			{
 				pstmt = DB.prepareStatement(sql, invoice.get_TrxName());
 				pstmt.setInt(1, invoice.getC_Invoice_ID());
 				ResultSet rs = pstmt.executeQuery();
-				while (rs.next()) {
-					docNoList = docNoList + " " + rs.getString(1);
+				if (rs.next()) {
+					docNoList = docNoList + rs.getString(1);
 					Timestamp date = rs.getTimestamp(2);
 					String stringDate = new SimpleDateFormat("dd/MM/yyyy").format(date); 
 					dateList = dateList + " " + stringDate;
@@ -1764,6 +1760,63 @@ public class CAValidator implements ModelValidator
 			}			
 			return errorMsg;
 		}
+		private String inoutLineSetOrderLine(PO po) {
+			MInOut inOut = (MInOut)po;
+			if (inOut.isSOTrx() || inOut.getC_Order_ID() <=0) {
+				return "";
+			}
+			Arrays.stream(inOut.getLines(false)).filter(inoutLine -> 
+					 inoutLine.getC_OrderLine_ID() <=0)
+			.forEach( inOutLine -> {
+				MOrder order = (MOrder)inOutLine.getParent().getC_Order();
+				for (MOrderLine orderLine : order.getLines()) {
+					if (orderLine.getM_Product_ID() == inOutLine.getM_Product_ID() && orderLine.getM_AttributeSetInstance_ID() <=0) {
+						inOutLine.setC_OrderLine_ID(orderLine.getC_OrderLine_ID());
+						inOutLine.saveEx();
+						break;
+					}
+				}
+			});
+			
+			return "";
+			
+		}
+		
+		private String updateDDOrderLine(PO po) {
+			MMovement move = (MMovement)po;
+			for (MMovementLine line : move.getLines(false))
+			{
+				if(line.getDD_OrderLine_ID() > 0)
+				{
+					MDDOrderLine oline= new MDDOrderLine(line.getCtx(),line.getDD_OrderLine_ID(), po.get_TrxName());
+					MLocator locator_to = MLocator.get(line.getCtx(), line.getM_LocatorTo_ID());
+					MWarehouse warehouse =  MWarehouse.get(line.getCtx(), locator_to.getM_Warehouse_ID()); 
+					oline.setQtyInTransit(oline.getQtyInTransit().subtract(line.getMovementQty()));
+					oline.setQtyDelivered(oline.getQtyDelivered().add(line.getMovementQty()));
+					oline.saveEx();
+
+				}
+			}
+			return "";
+		}
+		
+		private String updateWMInOutBoundLine(PO po) {
+
+			MDDOrderLine orderLine = (MDDOrderLine) po;
+			MWMInOutBoundLine outboundLine = (MWMInOutBoundLine) orderLine.getWM_InOutBoundLine();
+			if (outboundLine != null
+			&& outboundLine.getWM_InOutBoundLine_ID() > 0
+			&& orderLine.getQtyOrdered().compareTo(orderLine.getQtyDelivered()) >= 0) {
+				BigDecimal pickedQuantity = outboundLine.getPickedQty();
+				BigDecimal totalPickedQuantity = pickedQuantity.add(orderLine.getQtyDelivered());
+				outboundLine.setPickedQty(totalPickedQuantity);
+				outboundLine.saveEx();
+			}
+			
+			return "";
+		}
+
+	
 		
 			
 		
